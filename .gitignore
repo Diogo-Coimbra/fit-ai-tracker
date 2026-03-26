@@ -1,0 +1,16 @@
+# Ficheiros do Sistema Operativo
+.DS_Store
+Thumbs.db
+
+# Ignorar lixo do Frontend (React Native / Node)
+node_modules/
+.expo/
+npm-debug.log
+
+# Ignorar lixo do Backend (Python)
+venv/
+__pycache__/
+*.pyc
+
+# NUNCA ENVIAR SEGREDOS PARA O GITHUB
+.env
