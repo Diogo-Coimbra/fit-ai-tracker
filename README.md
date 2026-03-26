@@ -21,12 +21,12 @@
 - [ ] **OAuth 2.0 Integration:** Secure login (Google).
 - [ ] **Progress Analytics:** Time-series charts tracking body weight and lift progressions over time.
 
-## 🛠️ Tech Stack (To Be Defined)
+## 🛠️ Tech Stack
 
-* **Frontend:** *[e.g., React Native / Flutter / React]*
-* **Backend:** *[e.g., Node.js / Python FastAPI / Go]*
-* **Database:** *[e.g., PostgreSQL / MongoDB]*
-* **AI/ML:** *[e.g., OpenAI API / Custom Vision Model]*
+* **Frontend:** React Native (Expo) with TypeScript
+* **Backend:** Python 3 & FastAPI
+* **Database:** PostgreSQL
+* **AI & Vision:** OpenAI API (LLM) & Computer Vision integration
 
 ## 📝 License
 
