@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from './store/useAuthStore';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
 // 2. Criamos o "Gestor de Rotas"
 const Stack = createNativeStackNavigator();
@@ -32,14 +33,17 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          // ROTA PRIVADA: Só entra quem tem sessão
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        ) : (
-          // ROTA PÚBLICA: Para quem precisa de entrar
-          <Stack.Screen name="Login" component={LoginScreen} />
-        )}
-      </Stack.Navigator>
+     {user ? (
+       // ROTA PRIVADA: Adicionámos um Fragment (<> </>) para agrupar os dois ecrãs
+       <>
+         <Stack.Screen name="Dashboard" component={DashboardScreen} />
+         <Stack.Screen name="Profile" component={ProfileScreen} />
+       </>
+     ) : (
+       // ROTA PÚBLICA
+       <Stack.Screen name="Login" component={LoginScreen} />
+     )}
+   </Stack.Navigator>
     </NavigationContainer>
   );
 }
