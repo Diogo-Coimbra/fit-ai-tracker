@@ -1,23 +1,85 @@
-// 1. Importamos o "rececionista" (Express)
+import 'dotenv/config'; 
 import express from 'express';
+import cors from 'cors';
+import { OAuth2Client } from 'google-auth-library';
+import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-// 2. Criamos a nossa aplicação (o nosso servidor)
 const app = express();
-
-// 3. Definimos qual é a "porta" onde ele vai ficar à escuta
-// Se o sistema der uma porta, usamos essa, senão usamos a 3000 por defeito
 const PORT = process.env.PORT || 3000;
-
-// 4. Ensinamos o servidor a ler ficheiros JSON (que é como a internet fala hoje em dia)
+app.use(cors());
 app.use(express.json());
 
-// 5. Criamos uma rota de teste (uma porta de entrada simples)
-// Quando alguém for ao endereço principal ('/'), o servidor responde com uma mensagem
-app.get('/', (req, res) => {
-  res.send('O Backend do Fit AI Tracker está vivo e a respirar! 🏋️‍♂️');
+// 🕵️ DEBUG PARA VER SE O FRONTEND ESTÁ A COMUNICAR CORRECTAMENTE
+app.use((req, res, next) => {
+  console.log(`\n➡️ [${req.method}] ${req.url}`);
+  next();
 });
 
-// 6. Finalmente, mandamos o servidor arrancar e ficar à escuta
-app.listen(PORT, () => {
+const connectionString = `${process.env.DATABASE_URL}`;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+const googleClient = new OAuth2Client();
+
+console.log("🚀 Link detetado:", process.env.DATABASE_URL ? "SIM ✅" : "NÃO ❌");
+
+app.post('/api/auth/google', async (req, res) => {
+  console.log("📦 Body Recebido do Frontend:", req.body);
+  // CORREÇÃO CRÍTICA: Garantir que é .body (com Y)
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Nenhum token fornecido!' });
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) return res.status(400).json({ error: 'Erro Google' });
+
+    const user = await prisma.user.upsert({
+      where: { googleId: payload.sub },
+      update: {},
+      create: {
+        googleId: payload.sub,
+        email: payload.email!,
+        name: payload.name!,
+        picture: payload.picture,
+      },
+    });
+
+    console.log(`✅ Utilizador autenticado: ${user.name}`);
+    res.status(200).json({ message: 'Sucesso!', user });
+
+  } catch (error) {
+    console.error("Erro na autenticação:", error);
+    res.status(401).json({ error: 'Token inválido!' });
+  }
+});
+
+const server = app.listen(PORT, () => {
   console.log(`🚀 Servidor a correr na porta ${PORT}`);
 });
+
+server.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ ERRO: A porta ${PORT} já está a ser usada por outro processo! Tens de parar os outros terminais.`);
+  } else {
+    console.error('❌ ERRO no servidor:', err);
+  }
+});
+
+process.on('uncaughtException', (err) => {
+  console.error("❌ ERRO CRÍTICO (Não apanhado):", err);
+  // Opcional: process.exit(1); mas tentaremos manter aberto para debug
+});
+
+// Ajudar o nodemon em Windows a não fazer clean exit fantasma bloqueando o processo
+process.stdin.resume();
