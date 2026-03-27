@@ -1,17 +1,28 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+// 1. Importamos o nosso "Cérebro"
+import { useAuthStore } from './store/useAuthStore'; 
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function App() {
+  // 2. Pedimos ao cérebro as variáveis e funções que precisamos
+  const { user, isLoading, login, checkSession } = useAuthStore();
+
+  // 3. Este useEffect corre APENAS UMA VEZ quando a app abre para ler o cofre
+  useEffect(() => {
+    checkSession();
+  }, []);
+
   // Configuração inicial do pedido à Google
   const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: '715283938816-l95uo27dqv3ke2cfqv3t93bef73tcf6s.apps.googleusercontent.com', // O ID antigo
-    iosClientId: '715283938816-qv35s088tbu2npb5am41i76qmtkl986r.apps.googleusercontent.com', // <-- Cola o novo ID aqui (com aspas!)
-    scopes: ['profile', 'email', 'openid'], // OBRIGATÓRIO PARA TERMOS O ID TOKEN NO MODO WEB!
-    responseType: 'id_token', // EXTREMAMENTE IMPORTANTE NO BROWSER: Forçar a Google a devolver diretamente o ID Token
+    webClientId: '715283938816-l95uo27dqv3ke2cfqv3t93bef73tcf6s.apps.googleusercontent.com', 
+    iosClientId: '715283938816-qv35s088tbu2npb5am41i76qmtkl986r.apps.googleusercontent.com',
+    androidClientId: '715283938816-4hio2kbp5u27nifolr33ot4d1fr5s8m8.apps.googleusercontent.com',
+    scopes: ['profile', 'email', 'openid'], 
+    responseType: 'id_token', 
   });
 
   // Este 'useEffect' fica à escuta. Quando a Google responde, ele acorda!
@@ -20,29 +31,50 @@ export default function App() {
       const { authentication } = response;
       const idTokenFinal = authentication?.idToken || response.params?.id_token;
       
-      // Se o login correr bem, vamos ver o Token secreto no terminal
-      console.log('✅ SUCESSO! Access Token:', authentication?.accessToken);
-      console.log('🔑 ID Token (o que vai para o backend):', idTokenFinal ? 'ENCONTRADO!' : 'NÃO VEIO!');
-
-      // ❗ IMPORTANTE: Agora pegamos no token e enviamos "por correio" (POST) para o nosso Backend!
       if (idTokenFinal) {
-        // ATENÇÃO: Se estiveres a testar num telemóvel físico (Expo Go), troca "localhost" pelo teu IP (ex: 192.168.1...:3000)
-        // Se for o Emulador do Android, usa "10.0.2.2" em vez de "localhost"
-        // NO BROWSER (Tecla W) PODE FICAR LOCALHOST!
-        fetch('http://localhost:3000/api/auth/google', {
+        fetch('http://192.168.1.80:3000/api/auth/google', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ token: idTokenFinal }), // O nome "token" tem de ser igualzinho ao do req.body.token do backend!
+          body: JSON.stringify({ token: idTokenFinal }), 
         })
           .then((res) => res.json())
-          .then((data) => console.log('🚀 Resposta do nosso Backend:', data))
+          .then((data) => {
+            console.log('🚀 Resposta do nosso Backend:', data);
+            
+            // 4. SE O BACKEND DISSER QUE ESTÁ TUDO BEM, GUARDAMOS NO COFRE!
+            if (data.user) {
+              login(data.user); // Isto guarda os dados e atualiza a app inteira
+            }
+          })
           .catch((err) => console.error('❌ Erro a enviar para o Backend:', err));
       }
     }
   }, [response]);
 
+  // 5. Se a app ainda está a ler o cofre (isLoading), mostramos um ecrã de carga
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#4285F4" />
+        <Text style={{ color: '#aaaaaa', marginTop: 15 }}>A abrir o cofre...</Text>
+      </View>
+    );
+  }
+
+  // 6. Se já encontrámos um utilizador (no cofre ou acabou de fazer login)
+  if (user) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Bem-vindo de volta! 🎉</Text>
+        <Text style={styles.subtitle}>{user.name}</Text>
+        {/* Na US 9 vamos meter aqui o botão de Logout */}
+      </View>
+    );
+  }
+
+  // Se ninguém estiver logado, mostramos o ecrã original de Login
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Fit AI Tracker 🏋️‍♂️</Text>
@@ -50,8 +82,8 @@ export default function App() {
 
       <TouchableOpacity 
         style={styles.button} 
-        disabled={!request} // O botão fica inativo até a Google estar pronta
-        onPress={() => promptAsync()} // O clique agora abre a janela da Google!
+        disabled={!request} 
+        onPress={() => promptAsync()} 
       >
         <Text style={styles.buttonText}>Entrar com o Google</Text>
       </TouchableOpacity>
@@ -71,6 +103,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: 10,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 18,
