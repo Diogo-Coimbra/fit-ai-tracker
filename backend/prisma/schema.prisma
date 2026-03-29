@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,4 +17,40 @@ model User {
   name      String                        // O Nome do utilizador
   picture   String?                       // A Foto do perfil (o '?' significa que é opcional)
   createdAt DateTime @default(now())      // Guarda automaticamente a data e hora em que a conta foi criada
+  
+  // NOVIDADE: Um utilizador pode ter vários treinos (Uma lista de Workouts)
+  workouts  Workout[]
+}
+
+// NOVO MODELO: O Treino (ex: "Dia de Peito", "Leg Day")
+model Workout {
+  id          String     @id @default(uuid())
+  name        String     
+  description String?    
+  
+  // Relação: Quem é o dono deste treino? 
+  // O onDelete: Cascade significa que se apagares a tua conta, os teus treinos são apagados também
+  userId      String     
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relação: Um treino tem uma lista de exercícios
+  exercises   Exercise[] 
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+// NOVO MODELO: O Exercício dentro do treino (ex: "Supino Plano")
+model Exercise {
+  id          String   @id @default(uuid())
+  name        String   
+  sets        Int      @default(3) // Séries padrão: 3
+  reps        Int      @default(10) // Repetições padrão: 10
+  weight      Float?   // Peso em kg (opcional)
+  
+  // Relação: A que treino pertence este exercício?
+  workoutId   String   
+  workout     Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
 }

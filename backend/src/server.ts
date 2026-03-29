@@ -64,6 +64,60 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+// ==========================================
+// ROTAS DE TREINOS (WORKOUTS) - SPRINT 4
+// ==========================================
+
+// AC 2: Criar um novo treino (POST)
+app.post('/api/workouts', async (req, res) => {
+  try {
+    const { name, description, userId } = req.body;
+
+    if (!name || !userId) {
+      return res.status(400).json({ error: 'O nome e o userId são obrigatórios!' });
+    }
+
+    const newWorkout = await prisma.workout.create({
+      data: {
+        name,
+        description,
+        userId,
+      },
+    });
+
+    console.log(`✅ Treino "${name}" criado com sucesso!`);
+    res.status(201).json(newWorkout);
+  } catch (error) {
+    console.error('❌ Erro ao criar treino:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao criar o treino.' });
+  }
+});
+
+// AC 3: Buscar todos os treinos de um utilizador (GET)
+app.get('/api/workouts/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const userWorkouts = await prisma.workout.findMany({
+      where: {
+        userId: userId,
+      },
+      orderBy: {
+        createdAt: 'desc', // Organiza do mais recente para o mais antigo
+      },
+    });
+
+    res.status(200).json(userWorkouts);
+  } catch (error) {
+    console.error('❌ Erro ao buscar treinos:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao buscar os treinos.' });
+  }
+});
+
+// ==========================================
+// ARRANQUE DO SERVIDOR
+// ==========================================
+
 const server = app.listen(PORT, () => {
   console.log(`🚀 Servidor a correr na porta ${PORT}`);
 });
