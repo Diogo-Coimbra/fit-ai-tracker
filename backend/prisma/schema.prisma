@@ -17,9 +17,8 @@ model User {
   name      String                        // O Nome do utilizador
   picture   String?                       // A Foto do perfil (o '?' significa que é opcional)
   createdAt DateTime @default(now())      // Guarda automaticamente a data e hora em que a conta foi criada
-  
-  // NOVIDADE: Um utilizador pode ter vários treinos (Uma lista de Workouts)
   workouts  Workout[]
+  logs      WorkoutLog[]
 }
 
 // NOVO MODELO: O Treino (ex: "Dia de Peito", "Leg Day")
@@ -38,6 +37,8 @@ model Workout {
   
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+
+  logs        WorkoutLog[]
 }
 
 // NOVO MODELO: O Exercício dentro do treino (ex: "Supino Plano")
@@ -53,4 +54,14 @@ model Exercise {
   workout     Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   
   createdAt   DateTime @default(now())
+}
+
+model WorkoutLog {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) // Regista automaticamente o dia e hora
+  userId    String
+  workoutId String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout   Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 }

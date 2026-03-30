@@ -353,6 +353,34 @@ app.post('/api/ai/generate-workout', async (req, res) => {
 });
 
 // ==========================================
+// ROTAS DE HISTÓRICO DE TREINOS - SPRINT 9
+// ==========================================
+
+// AC 1: Guardar um treino concluído
+app.post('/api/logs', async (req, res) => {
+  try {
+    const { userId, workoutId } = req.body;
+
+    if (!userId || !workoutId) {
+      return res.status(400).json({ error: 'Faltam os IDs do utilizador ou do treino.' });
+    }
+
+    const newLog = await prisma.workoutLog.create({
+      data: {
+        userId,
+        workoutId
+      }
+    });
+
+    console.log(`🏆 Treino ${workoutId} finalizado pelo utilizador ${userId}!`);
+    res.status(201).json(newLog);
+  } catch (error) {
+    console.error('❌ Erro ao guardar histórico:', error);
+    res.status(500).json({ error: 'Erro ao registar o treino concluído.' });
+  }
+});
+
+// ==========================================
 // ARRANQUE DO SERVIDOR
 // ==========================================
 

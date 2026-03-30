@@ -1,15 +1,20 @@
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, FlatList, Alert, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuthStore } from '../store/useAuthStore'; // 👈 IMPORTANTE: Fomos buscar o cofre global (US 26)
 
 export default function WorkoutDetailsScreen({ route, navigation }: any) {
   const { workoutId } = route.params;
+  const { user } = useAuthStore(); // 👈 Vamos buscar o user logado para saber quem está a treinar (US 26)
   
   const [workoutDetails, setWorkoutDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // NOVO ESTADO US 23: Guarda os IDs dos exercícios que já marcaste como concluídos hoje
+  // ESTADO US 23: Guarda os IDs dos exercícios concluídos hoje
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
+  
+  // NOVO ESTADO US 26: Evita que o utilizador clique duas vezes no botão de finalizar
+  const [isFinishing, setIsFinishing] = useState(false);
 
   const fetchDetails = async () => {
     try {
@@ -27,8 +32,6 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
   useFocusEffect(
     useCallback(() => {
       fetchDetails();
-      // Opcional: Se quiseres que os vistos limpem sempre que sais e entras no treino
-      // setCompletedExercises([]); 
     }, [workoutId])
   );
 
@@ -93,21 +96,49 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  // FUNÇÃO NOVA US 23: Alterna o estado de concluído do exercício
   const toggleExerciseCompletion = (exerciseId: string) => {
     setCompletedExercises((prev) => 
       prev.includes(exerciseId) 
-        ? prev.filter((id) => id !== exerciseId) // Se já lá está, tira (desmarca)
-        : [...prev, exerciseId] // Se não está, junta à lista (marca como concluído)
+        ? prev.filter((id) => id !== exerciseId)
+        : [...prev, exerciseId]
     );
   };
 
+  // 👇 NOVA FUNÇÃO US 26: Regista a vitória no backend!
+  const handleFinishWorkout = async () => {
+    if (!user?.id || !workoutDetails?.id) return;
+    
+    setIsFinishing(true);
+    try {
+      const response = await fetch('http://192.168.1.80:3000/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, workoutId: workoutDetails.id })
+      });
+
+      if (response.ok) {
+        if (Platform.OS === 'web') {
+          alert('Treino Finalizado! Parabéns, foste uma máquina hoje! 💪🏆');
+        } else {
+          Alert.alert('Treino Finalizado! 🏆', 'Parabéns, foste uma máquina hoje! 💪');
+        }
+        navigation.navigate('Dashboard');
+      } else {
+        throw new Error('Falha ao registar o log na base de dados.');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao finalizar treino:', error);
+      if (Platform.OS === 'web') alert('Erro ao finalizar o treino. Tenta de novo!');
+      else Alert.alert('Erro', 'Não foi possível registar o treino. Tenta de novo!');
+    } finally {
+      setIsFinishing(false);
+    }
+  };
+
   const renderExercise = ({ item }: any) => {
-    // Verificamos se este exercício está na nossa lista de concluídos
     const isCompleted = completedExercises.includes(item.id);
 
     return (
-      // Agora o cartão inteiro é um botão! Se clicares, ele marca/desmarca.
       <TouchableOpacity 
         activeOpacity={0.8}
         style={[styles.exerciseCard, isCompleted && styles.exerciseCardCompleted]}
@@ -122,7 +153,6 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
           </Text>
         </View>
         
-        {/* Os botões de ação mantêm-se a funcionar normalmente */}
         <View style={styles.actionButtons}>
           <TouchableOpacity 
             style={styles.actionBtn}
@@ -176,6 +206,17 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         />
       </View>
 
+      {/* 👇 NOVO BOTÃO US 26: O Botão Dourado de Finalizar Treino */}
+      <TouchableOpacity 
+        style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} 
+        onPress={handleFinishWorkout}
+        disabled={isFinishing}
+      >
+        <Text style={styles.finishBtnText}>
+          {isFinishing ? 'A registar...' : '🏆 Finalizar Treino'}
+        </Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.deleteWorkoutBtn} onPress={handleDeleteWorkout}>
         <Text style={styles.deleteWorkoutText}>🗑️ Apagar Treino Inteiro</Text>
       </TouchableOpacity>
@@ -200,19 +241,23 @@ const styles = StyleSheet.create({
   backButton: { backgroundColor: '#333333', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginTop: 20 },
   backButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
-  // Estilos do Cartão Normal
   exerciseCard: { backgroundColor: '#2a2a2a', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4285F4', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: 18, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   exerciseDetails: { fontSize: 14, color: '#aaaaaa' },
   
-  // NOVOS ESTILOS US 23: Para quando o exercício está concluído ✅
   exerciseCardCompleted: { borderLeftColor: '#4CAF50', backgroundColor: '#1a1a1a', opacity: 0.6 },
   exerciseTextCompleted: { textDecorationLine: 'line-through', color: '#666' },
 
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   actionBtn: { padding: 5, marginLeft: 10 },
   iconText: { fontSize: 20 },
+
+  // 👇 NOVOS ESTILOS DO BOTÃO DOURADO
+  finishBtn: { backgroundColor: '#FFD700', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 15, elevation: 5, shadowColor: '#FFD700', shadowOpacity: 0.4, shadowRadius: 8 },
+  finishBtnDisabled: { backgroundColor: '#b39700', opacity: 0.7 },
+  finishBtnText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
+
   deleteWorkoutBtn: { backgroundColor: '#ff4444', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   deleteWorkoutText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' }
 });
