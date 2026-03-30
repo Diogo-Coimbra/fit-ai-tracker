@@ -1,18 +1,51 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, Platform, TextInput } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, Platform, TextInput, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function ProfileScreen({ navigation }: any) {
-  const { user, logout } = useAuthStore();
+  // AC 2: Agora fomos buscar também o 'setUser' ao nosso estado global
+  const { user, logout, setUser } = useAuthStore();
   
   const [profilePic, setProfilePic] = useState(user?.picture);
   const [imageError, setImageError] = useState(false);
 
-  // NOVOS ESTADOS: Para a edição do nome
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(user?.name || '');
   const [displayName, setDisplayName] = useState(user?.name || '');
+  
+  // Estado para dar feedback visual enquanto guarda
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Função para guardar DADOS NA BD
+  const saveProfileToDB = async (updateData: any) => {
+    if (!user || !user.id) return false;
+
+    try {
+      setIsSaving(true);
+      const response = await fetch(`http://192.168.1.80:3000/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        // AC 2: Atualizamos o estado global instantaneamente!
+        setUser(updatedUser);
+        return true;
+      } else {
+        throw new Error('Falha ao atualizar na base de dados.');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao guardar perfil:', error);
+      if (Platform.OS === 'web') alert('Erro ao guardar as alterações.');
+      else Alert.alert('Erro', 'Não foi possível guardar as alterações.');
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -20,30 +53,34 @@ export default function ProfileScreen({ navigation }: any) {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
+      base64: true, // Importante para enviar a imagem para a BD se necessário (simplificado aqui com URI)
     });
 
     if (!result.canceled) {
-      setProfilePic(result.assets[0].uri);
+      const newPicUri = result.assets[0].uri;
+      
+      // Atualiza visualmente primeiro para ser instantâneo
+      setProfilePic(newPicUri);
       setImageError(false);
       
-      console.log('✅ Nova foto escolhida:', result.assets[0].uri);
-      if (Platform.OS === 'web') alert('Foto alterada no ecrã! (Será guardada na BD no Sprint 9)');
+      // AC 1: Envia a nova foto para a Base de Dados
+      await saveProfileToDB({ picture: newPicUri });
     }
   };
 
-  // FUNÇÃO NOVA: Guardar o nome
-  const handleSaveName = () => {
+  const handleSaveName = async () => {
     if (!tempName.trim()) {
       if (Platform.OS === 'web') alert('O nome não pode estar vazio!');
+      else Alert.alert('Atenção', 'O nome não pode estar vazio!');
       return;
     }
     
-    setDisplayName(tempName); // Atualiza o nome visível
-    setIsEditingName(false); // Fecha o modo de edição
+    // AC 1: Envia o novo nome para a Base de Dados
+    const success = await saveProfileToDB({ name: tempName });
     
-    console.log('✏️ Novo nome definido localmente:', tempName);
-    if (Platform.OS === 'web') {
-      alert(`Nome alterado para "${tempName}" no ecrã! (Vamos ligar à base de dados no Sprint 9)`);
+    if (success) {
+      setDisplayName(tempName); 
+      setIsEditingName(false); 
     }
   };
 
@@ -51,7 +88,7 @@ export default function ProfileScreen({ navigation }: any) {
     <View style={styles.container}>
       <Text style={styles.headerTitle}>O Meu Perfil 👤</Text>
 
-      <TouchableOpacity onPress={pickImage} style={styles.imageContainer} activeOpacity={0.8}>
+      <TouchableOpacity onPress={pickImage} style={styles.imageContainer} activeOpacity={0.8} disabled={isSaving}>
         {profilePic && !imageError ? (
           <Image 
             source={{ uri: profilePic }} 
@@ -68,7 +105,6 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
       </TouchableOpacity>
       
-      {/* ZONA DO NOME: Condicional (Modo Leitura vs Modo Edição) */}
       {isEditingName ? (
         <View style={styles.editNameContainer}>
           <TextInput 
@@ -78,13 +114,14 @@ export default function ProfileScreen({ navigation }: any) {
             autoFocus
             placeholder="O teu novo nome..."
             placeholderTextColor="#666"
+            editable={!isSaving}
           />
-          <TouchableOpacity style={styles.saveNameBtn} onPress={handleSaveName}>
-            <Text style={styles.saveNameText}>✅</Text>
+          <TouchableOpacity style={styles.saveNameBtn} onPress={handleSaveName} disabled={isSaving}>
+            <Text style={styles.saveNameText}>{isSaving ? '⏳' : '✅'}</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <TouchableOpacity style={styles.nameDisplayContainer} onPress={() => setIsEditingName(true)}>
+        <TouchableOpacity style={styles.nameDisplayContainer} onPress={() => setIsEditingName(true)} disabled={isSaving}>
           <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.editNameIcon}>✏️</Text>
         </TouchableOpacity>
@@ -117,7 +154,6 @@ const styles = StyleSheet.create({
   editBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#4285F4', width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#121212' },
   editBadgeText: { fontSize: 16 },
 
-  // NOVOS ESTILOS: Para a zona do nome
   nameDisplayContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
   name: { fontSize: 22, fontWeight: 'bold', color: '#ffffff' },
   editNameIcon: { fontSize: 16, marginLeft: 8, opacity: 0.7 },

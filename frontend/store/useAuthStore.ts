@@ -14,6 +14,8 @@ interface AuthState {
   login: (userData: User) => Promise<void>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
+  // NOVA FUNÇÃO DA US 25:
+  setUser: (userData: User) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -23,7 +25,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   // AÇÃO DE LOGIN
   login: async (userData) => {
     try {
-      // Guardamos no cofre que funciona na Web!
+      // Guardamos no cofre
       await AsyncStorage.setItem('user_session', JSON.stringify(userData));
       // E só depois avisamos a app para mudar o ecrã
       set({ user: userData });
@@ -54,6 +56,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (error) {
       console.error("Erro ao ler sessão:", error);
       set({ isLoading: false });
+    }
+  },
+
+  // A NOSSA NOVA FUNÇÃO MÁGICA PARA ATUALIZAR O PERFIL (US 25)
+  setUser: async (updatedUser) => {
+    try {
+      // 1. Atualizamos o cofre local para não perder os dados no refresh
+      await AsyncStorage.setItem('user_session', JSON.stringify(updatedUser));
+      // 2. Atualizamos o estado da app em tempo real (ex: muda o nome logo no Dashboard)
+      set({ user: updatedUser });
+    } catch (error) {
+      console.error("Erro ao atualizar os dados da sessão local:", error);
     }
   }
 }));
