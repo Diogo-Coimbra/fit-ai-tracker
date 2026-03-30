@@ -5,6 +5,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +24,8 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 const googleClient = new OAuth2Client();
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 console.log("🚀 Link detetado:", process.env.DATABASE_URL ? "SIM ✅" : "NÃO ❌");
 
@@ -212,6 +215,66 @@ app.delete('/api/workouts/:workoutId', async (req, res) => {
   } catch (error) {
     console.error('❌ Erro ao apagar treino:', error);
     res.status(500).json({ error: 'Erro interno do servidor ao apagar o treino.' });
+  }
+});
+
+// ==========================================
+// ROTAS DE INTELIGÊNCIA ARTIFICIAL (IA) - SPRINT 6
+// ==========================================
+
+// AC 2: Rota para gerar treinos com IA
+app.post('/api/ai/generate-workout', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: 'O prompt (pedido) é obrigatório!' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'A chave da API não está configurada no servidor.' });
+    }
+
+    // Usamos o modelo Flash, que é super rápido e perfeito para texto
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    // O Segredo: O Prompt do Sistema para forçar a IA a cuspir um JSON certinho
+    const systemInstruction = `
+      És um personal trainer de elite. O utilizador vai pedir-te um treino.
+      Tens de responder ESTRITAMENTE num formato JSON válido, sem texto extra ou formatação markdown (sem \`\`\`json).
+      Usa exatamente esta estrutura:
+      {
+        "name": "Nome do Treino (ex: Treino de Força - Peito)",
+        "description": "Uma breve frase motivacional ou objetivo do treino",
+        "exercises": [
+          {
+            "name": "Nome do Exercício",
+            "sets": 4,
+            "reps": 10,
+            "weight": 0
+          }
+        ]
+      }
+    `;
+
+    const fullPrompt = `${systemInstruction}\n\nPedido do utilizador: ${prompt}`;
+
+    // Pedir à IA para pensar e responder
+    const result = await model.generateContent(fullPrompt);
+    const responseText = result.response.text();
+
+    // Limpar o texto (caso a IA insista em mandar formatação markdown por engano)
+    const cleanJsonText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    // Transformar o texto da IA num objeto informático real
+    const workoutData = JSON.parse(cleanJsonText);
+
+    console.log(`🧠 IA gerou o treino: ${workoutData.name}`);
+    res.status(200).json(workoutData);
+
+  } catch (error) {
+    console.error('❌ Erro na IA:', error);
+    res.status(500).json({ error: 'Erro ao gerar treino com a IA.' });
   }
 });
 
