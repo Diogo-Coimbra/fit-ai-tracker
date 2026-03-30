@@ -236,7 +236,7 @@ app.post('/api/ai/generate-workout', async (req, res) => {
     }
 
     // Usamos o modelo Flash, que é super rápido e perfeito para texto
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // O Segredo: O Prompt do Sistema para forçar a IA a cuspir um JSON certinho
     const systemInstruction = `

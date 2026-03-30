@@ -1,32 +1,94 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
+import { useAuthStore } from '../store/useAuthStore'; // Precisamos disto para o ID do utilizador!
 
 export default function AIGeneratorScreen({ navigation }: any) {
+  const { user } = useAuthStore();
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerate = () => {
-    // 1. Validar se a caixa está vazia
+  const handleGenerate = async () => {
+    // Validação inicial
     if (!prompt.trim()) {
-      if (Platform.OS === 'web') {
-        alert('Atenção: Tens de escrever o que queres que a IA faça!');
-      } else {
-        Alert.alert('Atenção', 'Tens de escrever o que queres que a IA faça!');
-      }
+      if (Platform.OS === 'web') alert('Atenção: Tens de escrever o que queres que a IA faça!');
+      else Alert.alert('Atenção', 'Tens de escrever o que queres que a IA faça!');
       return;
     }
 
-    // 2. Simular o estado de "A pensar..."
+    if (!user?.id) {
+      if (Platform.OS === 'web') alert('Erro: Utilizador não encontrado.');
+      else Alert.alert('Erro', 'Utilizador não encontrado.');
+      return;
+    }
+
     setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
-      // 3. Mostrar a mensagem de sucesso consoante a plataforma
-      if (Platform.OS === 'web') {
-        alert('Sucesso! A interface está pronta. Na US 20 vamos ligar isto ao cérebro do servidor!');
-      } else {
-        Alert.alert('Sucesso!', 'A interface está pronta. Na US 20 vamos ligar isto ao cérebro do servidor!');
+
+    try {
+      // AC 1: Falar com o servidor da IA e enviar o pedido
+      const aiResponse = await fetch('http://192.168.1.80:3000/api/ai/generate-workout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt }),
+      });
+
+      if (!aiResponse.ok) throw new Error('Falha ao comunicar com a IA');
+      const generatedData = await aiResponse.json();
+
+      // AC 2: Criar a "pasta" do treino na base de dados
+      const workoutResponse = await fetch('http://192.168.1.80:3000/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: generatedData.name,
+          description: generatedData.description || 'Treino gerado com IA ✨',
+          userId: user.id,
+        }),
+      });
+
+      if (!workoutResponse.ok) throw new Error('Falha ao gravar o treino na BD');
+      const newWorkout = await workoutResponse.json();
+
+      // AC 3: Fazer um loop e guardar todos os exercícios que a IA inventou
+      if (generatedData.exercises && generatedData.exercises.length > 0) {
+        // Usamos o Promise.all para gravar todos ao mesmo tempo (é muito mais rápido!)
+        const exercisePromises = generatedData.exercises.map((ex: any) => {
+          return fetch('http://192.168.1.80:3000/api/exercises', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: ex.name,
+              sets: ex.sets || 3,
+              reps: ex.reps || 10,
+              weight: ex.weight || null,
+              workoutId: newWorkout.id,
+            }),
+          });
+        });
+
+        await Promise.all(exercisePromises);
       }
-    }, 2000);
+
+      // AC 4: Tudo pronto! Avisar o utilizador e voltar ao Painel
+      if (Platform.OS === 'web') {
+        alert('Magia concluída! Treino criado com sucesso.');
+      } else {
+        Alert.alert('Magia Concluída! ✨', 'O teu treino foi criado e guardado com sucesso.');
+      }
+      
+      // Limpa a caixa de texto para a próxima vez e viaja para o Dashboard
+      setPrompt('');
+      navigation.navigate('Dashboard');
+
+    } catch (error) {
+      console.error('❌ Erro na orquestração da IA:', error);
+      if (Platform.OS === 'web') {
+        alert('Erro: A IA teve um soluço. Tenta escrever o pedido de forma um pouco diferente!');
+      } else {
+        Alert.alert('Erro', 'A IA teve um soluço. Tenta escrever o pedido de forma um pouco diferente!');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -60,7 +122,7 @@ export default function AIGeneratorScreen({ navigation }: any) {
         {isGenerating ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color="#fff" size="small" />
-            <Text style={styles.loadingText}>A pensar no treino ideal...</Text>
+            <Text style={styles.loadingText}>A criar o teu treino ideal...</Text>
           </View>
         ) : (
           <Text style={styles.generateButtonText}>✨ Criar treino</Text>
