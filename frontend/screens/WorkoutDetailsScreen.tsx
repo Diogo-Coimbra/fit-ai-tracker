@@ -8,6 +8,9 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
   const [workoutDetails, setWorkoutDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // NOVO ESTADO US 23: Guarda os IDs dos exercícios que já marcaste como concluídos hoje
+  const [completedExercises, setCompletedExercises] = useState<string[]>([]);
+
   const fetchDetails = async () => {
     try {
       setIsLoading(true);
@@ -24,6 +27,8 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
   useFocusEffect(
     useCallback(() => {
       fetchDetails();
+      // Opcional: Se quiseres que os vistos limpem sempre que sais e entras no treino
+      // setCompletedExercises([]); 
     }, [workoutId])
   );
 
@@ -88,52 +93,54 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
+  // FUNÇÃO NOVA US 23: Alterna o estado de concluído do exercício
+  const toggleExerciseCompletion = (exerciseId: string) => {
+    setCompletedExercises((prev) => 
+      prev.includes(exerciseId) 
+        ? prev.filter((id) => id !== exerciseId) // Se já lá está, tira (desmarca)
+        : [...prev, exerciseId] // Se não está, junta à lista (marca como concluído)
     );
-  }
+  };
 
-  if (!workoutDetails) {
+  const renderExercise = ({ item }: any) => {
+    // Verificamos se este exercício está na nossa lista de concluídos
+    const isCompleted = completedExercises.includes(item.id);
+
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Treino não encontrado!</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>⬅ Voltar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  // AC 1: O cartão agora tem um botão de edição ao lado do caixote do lixo
-  const renderExercise = ({ item }: any) => (
-    <View style={styles.exerciseCard}>
-      <View style={styles.exerciseInfo}>
-        <Text style={styles.exerciseName}>{item.name}</Text>
-        <Text style={styles.exerciseDetails}>
-          {item.sets} séries x {item.reps} reps {item.weight ? `| ${item.weight}kg` : ''}
-        </Text>
-      </View>
-      
-      <View style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => navigation.navigate('EditExercise', { exercise: item })}
-        >
-          <Text style={styles.iconText}>✏️</Text>
-        </TouchableOpacity>
+      // Agora o cartão inteiro é um botão! Se clicares, ele marca/desmarca.
+      <TouchableOpacity 
+        activeOpacity={0.8}
+        style={[styles.exerciseCard, isCompleted && styles.exerciseCardCompleted]}
+        onPress={() => toggleExerciseCompletion(item.id)}
+      >
+        <View style={styles.exerciseInfo}>
+          <Text style={[styles.exerciseName, isCompleted && styles.exerciseTextCompleted]}>
+            {isCompleted ? '✅ ' : ''}{item.name}
+          </Text>
+          <Text style={[styles.exerciseDetails, isCompleted && styles.exerciseTextCompleted]}>
+            {item.sets} séries x {item.reps} reps {item.weight ? `| ${item.weight}kg` : ''}
+          </Text>
+        </View>
         
-        <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => handleDeleteExercise(item.id, item.name)}
-        >
-          <Text style={styles.iconText}>🗑️</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+        {/* Os botões de ação mantêm-se a funcionar normalmente */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={styles.actionBtn}
+            onPress={() => navigation.navigate('EditExercise', { exercise: item })}
+          >
+            <Text style={styles.iconText}>✏️</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionBtn}
+            onPress={() => handleDeleteExercise(item.id, item.name)}
+          >
+            <Text style={styles.iconText}>🗑️</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -141,23 +148,24 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         <Text style={styles.backHeaderText}>⬅ Voltar ao Painel</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>{workoutDetails.name}</Text>
-      {workoutDetails.description ? (
+      <Text style={styles.title}>{workoutDetails?.name}</Text>
+      {workoutDetails?.description ? (
         <Text style={styles.description}>{workoutDetails.description}</Text>
       ) : null}
 
       <View style={styles.listContainer}>
-        <Text style={styles.sectionTitle}>Exercícios 🏋️‍♂️</Text>
+        <Text style={styles.sectionTitle}>Modo de Treino 🏋️‍♂️</Text>
+        <Text style={styles.instructionText}>Toca num exercício para marcá-lo como concluído!</Text>
         
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => navigation.navigate('AddExercise', { workoutId: workoutDetails.id })}
+          onPress={() => navigation.navigate('AddExercise', { workoutId: workoutDetails?.id })}
         >
           <Text style={styles.addButtonText}>+ Adicionar Exercício</Text>
         </TouchableOpacity>
 
         <FlatList
-          data={workoutDetails.exercises || []}
+          data={workoutDetails?.exercises || []}
           keyExtractor={(item) => item.id}
           renderItem={renderExercise}
           ListEmptyComponent={
@@ -181,19 +189,27 @@ const styles = StyleSheet.create({
   backHeader: { marginBottom: 20 },
   backHeaderText: { color: '#4CAF50', fontSize: 16, fontWeight: 'bold' },
   title: { fontSize: 32, fontWeight: 'bold', color: '#ffffff', marginBottom: 10 },
-  description: { fontSize: 16, color: '#aaaaaa', marginBottom: 30 },
+  description: { fontSize: 16, color: '#aaaaaa', marginBottom: 20 },
+  instructionText: { color: '#888', fontStyle: 'italic', marginBottom: 15, textAlign: 'center' },
   listContainer: { flex: 1, backgroundColor: '#1e1e1e', borderRadius: 12, padding: 15, marginBottom: 20 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#ffffff', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 10 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#ffffff', marginBottom: 5, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 10 },
   addButton: { backgroundColor: '#4285F4', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 15 },
   addButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   emptyText: { fontSize: 15, color: '#aaaaaa', textAlign: 'center', marginTop: 30, lineHeight: 22 },
   errorText: { color: '#ff4444', fontSize: 18, textAlign: 'center', marginTop: 50 },
   backButton: { backgroundColor: '#333333', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginTop: 20 },
   backButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
+  
+  // Estilos do Cartão Normal
   exerciseCard: { backgroundColor: '#2a2a2a', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4285F4', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: 18, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   exerciseDetails: { fontSize: 14, color: '#aaaaaa' },
+  
+  // NOVOS ESTILOS US 23: Para quando o exercício está concluído ✅
+  exerciseCardCompleted: { borderLeftColor: '#4CAF50', backgroundColor: '#1a1a1a', opacity: 0.6 },
+  exerciseTextCompleted: { textDecorationLine: 'line-through', color: '#666' },
+
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   actionBtn: { padding: 5, marginLeft: 10 },
   iconText: { fontSize: 20 },
