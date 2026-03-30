@@ -1,16 +1,17 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, FlatList, ActivityIndicator, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function DashboardScreen({ navigation }: any) {
   const { user } = useAuthStore();
   
-  // Memória local do ecrã para guardar os treinos e o estado de carregamento
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Controla se a lista está expandida (aberta) ou fechada.
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // O useFocusEffect garante que vamos buscar os dados sempre que o ecrã aparece
   useFocusEffect(
     useCallback(() => {
       const fetchWorkouts = async () => {
@@ -18,10 +19,9 @@ export default function DashboardScreen({ navigation }: any) {
         
         try {
           setIsLoading(true);
-          // Fazemos o pedido GET à nossa API
           const response = await fetch(`http://192.168.1.80:3000/api/workouts/${user.id}`);
           const data = await response.json();
-          setWorkouts(data); // Guardamos a lista na memória
+          setWorkouts(data);
         } catch (error) {
           console.error('❌ Erro ao ir buscar os treinos:', error);
         } finally {
@@ -33,11 +33,9 @@ export default function DashboardScreen({ navigation }: any) {
     }, [user?.id])
   );
 
-  // Esta função ensina a FlatList como desenhar "um" treino no ecrã
   const renderWorkoutCard = ({ item }: any) => (
     <TouchableOpacity 
       style={styles.workoutCard}
-      // Quando clica, viaja para o WorkoutDetails levando o ID na "mala"
       onPress={() => navigation.navigate('WorkoutDetails', { workoutId: item.id })}
     >
       <Text style={styles.workoutName}>{item.name}</Text>
@@ -54,7 +52,6 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.subtitle}>Olá, {user?.name}!</Text>
       </View>
 
-      {/* NOVO BOTÃO ROXO DA IA - US 19 */}
       <TouchableOpacity 
         style={styles.aiButton} 
         onPress={() => navigation.navigate('AIGenerator')}
@@ -62,7 +59,6 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.aiButtonText}>✨ Gerar Treino com IA</Text>
       </TouchableOpacity>
 
-      {/* Botão Verde Antigo - US 11 */}
       <TouchableOpacity 
         style={styles.createButton} 
         onPress={() => navigation.navigate('CreateWorkout')}
@@ -70,29 +66,44 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.createButtonText}>+ Criar Novo Treino Manual</Text>
       </TouchableOpacity>
 
-      {/* A Lista de Treinos - US 12 */}
-      <View style={styles.listContainer}>
-        <Text style={styles.sectionTitle}>Os Meus Treinos 💪</Text>
+      {/* O ACORDEÃO AGORA É O CONTENTOR EXTERNO (sem flex) */}
+      <View style={styles.accordionContainer}>
         
-        {isLoading ? (
-          <ActivityIndicator size="large" color="#4CAF50" style={{ marginTop: 20 }} />
-        ) : (
-          <FlatList
-            data={workouts}
-            keyExtractor={(item) => item.id}
-            renderItem={renderWorkoutCard}
-            contentContainerStyle={styles.flatListContent}
-            // A mensagem de lista vazia (AC 3)
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                Ainda não tens treinos. Começa por criar o teu primeiro ali em cima! 🚀
-              </Text>
-            }
-          />
+        {/* O cabeçalho agora tem o fundo e bordas superiores arredondadas */}
+        <TouchableOpacity 
+          // Usamos um array de estilos para aplicar estilos condicionalmente
+          style={[
+            styles.expandHeader,
+            isExpanded && styles.expandHeaderExpanded // Aplica bordas retas se expandido
+          ]} 
+          onPress={() => setIsExpanded(!isExpanded)}
+        >
+          <Text style={styles.sectionTitle}>Os Meus Treinos 💪</Text>
+          <Text style={styles.expandIcon}>{isExpanded ? '🔼' : '🔽'}</Text>
+        </TouchableOpacity>
+        
+        {/* SÓ envolvemos o contentor cinzento de conteúdo se expandido */}
+        {isExpanded && (
+          <View style={styles.listContent}>
+            {isLoading ? (
+              <ActivityIndicator size="large" color="#4CAF50" style={{ marginTop: 20 }} />
+            ) : (
+              <FlatList
+                data={workouts}
+                keyExtractor={(item) => item.id}
+                renderItem={renderWorkoutCard}
+                contentContainerStyle={styles.flatListContent}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>
+                    Ainda não tens treinos. Começa por criar o teu primeiro ali em cima! 🚀
+                  </Text>
+                }
+              />
+            )}
+          </View>
         )}
       </View>
 
-      {/* Botão Perfil - US 9 */}
       <TouchableOpacity 
         style={styles.profileButton} 
         onPress={() => navigation.navigate('Profile')}
@@ -109,15 +120,43 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   subtitle: { fontSize: 18, color: '#4285F4' },
   
-  // Estilos do Botão Mágico da IA
   aiButton: { backgroundColor: '#8A2BE2', paddingVertical: 15, borderRadius: 8, elevation: 5, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#a350eb' },
   aiButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
 
   createButton: { backgroundColor: '#4CAF50', paddingVertical: 15, borderRadius: 8, elevation: 3, alignItems: 'center', marginBottom: 25 },
   createButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
-  listContainer: { flex: 1, backgroundColor: '#1e1e1e', borderRadius: 12, padding: 15, marginBottom: 20 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#ffffff', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 10 },
+  // Estilos do Acordeão Totalmente Revistos
+  accordionContainer: { marginBottom: 20 }, // Contentor sem flex
+  expandHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1e1e1e', // Fundo no cabeçalho
+    padding: 15, // Padding para o título
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12, // Borda inferior arredondada por defeito
+    borderBottomRightRadius: 12,
+  },
+  expandHeaderExpanded: { // Estilos extra para quando está expandido
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 1, // Borda divisória
+    borderBottomColor: '#333',
+  },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#ffffff' },
+  expandIcon: { fontSize: 18 },
+  
+  // O contentor de conteúdo (SÓ visível quando expandido)
+  listContent: {
+    backgroundColor: '#1e1e1e', // Fundo cinzento SÓ aqui
+    padding: 15, // Padding para o conteúdo
+    paddingTop: 5, // Pequeno padding superior para separar da borda divisória
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+
   flatListContent: { paddingBottom: 10 },
   
   workoutCard: { backgroundColor: '#2a2a2a', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4CAF50' },
