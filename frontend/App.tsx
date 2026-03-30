@@ -9,6 +9,7 @@ import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import CreateWorkoutScreen from './screens/CreateWorkoutScreen';
+import WorkoutDetailsScreen from './screens/WorkoutDetailsScreen';
 
 // 2. Criamos o "Gestor de Rotas"
 const Stack = createNativeStackNavigator();
@@ -39,8 +40,8 @@ export default function App() {
        <>
          <Stack.Screen name="Dashboard" component={DashboardScreen} />
          <Stack.Screen name="Profile" component={ProfileScreen} />
-         {/* O nosso novo ecrã de criar treinos: */}
          <Stack.Screen name="CreateWorkout" component={CreateWorkoutScreen} />
+         <Stack.Screen name="WorkoutDetails" component={WorkoutDetailsScreen} />
        </>
      ) : (
        // ROTA PÚBLICA

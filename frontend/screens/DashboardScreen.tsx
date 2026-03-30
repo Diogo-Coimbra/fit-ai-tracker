@@ -34,14 +34,18 @@ export default function DashboardScreen({ navigation }: any) {
     }, [user?.id])
   );
 
-  // Esta função ensina a FlatList como desenhar "um" treino no ecrã (AC 2)
+  // Esta função ensina a FlatList como desenhar "um" treino no ecrã
   const renderWorkoutCard = ({ item }: any) => (
-    <View style={styles.workoutCard}>
+    <TouchableOpacity 
+      style={styles.workoutCard}
+      // Quando clica, viaja para o WorkoutDetails levando o ID na "mala"
+      onPress={() => navigation.navigate('WorkoutDetails', { workoutId: item.id })}
+    >
       <Text style={styles.workoutName}>{item.name}</Text>
       {item.description ? (
         <Text style={styles.workoutDescription}>{item.description}</Text>
       ) : null}
-    </View>
+    </TouchableOpacity>
   );
 
   return (
