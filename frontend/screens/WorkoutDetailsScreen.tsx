@@ -27,12 +27,9 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     }, [workoutId])
   );
 
-  // Função isolada para apagar o exercício na base de dados
   const executeDeleteExercise = async (exerciseId: string) => {
     try {
-      const response = await fetch(`http://192.168.1.80:3000/api/exercises/${exerciseId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`http://192.168.1.80:3000/api/exercises/${exerciseId}`, { method: 'DELETE' });
       if (response.ok) {
         setWorkoutDetails((prev: any) => ({
           ...prev,
@@ -46,12 +43,9 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  // Função isolada para apagar o treino na base de dados
   const executeDeleteWorkout = async () => {
     try {
-      const response = await fetch(`http://192.168.1.80:3000/api/workouts/${workoutId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`http://192.168.1.80:3000/api/workouts/${workoutId}`, { method: 'DELETE' });
       if (response.ok) {
         navigation.navigate('Dashboard');
       } else {
@@ -62,7 +56,6 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  // Lidar com o clique no caixote do lixo do exercício
   const handleDeleteExercise = (exerciseId: string, exerciseName: string) => {
     if (Platform.OS === 'web') {
       const confirmed = window.confirm(`Tens a certeza que queres remover o "${exerciseName}"?`);
@@ -79,15 +72,14 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  // Lidar com o botão vermelho de apagar treino inteiro
   const handleDeleteWorkout = () => {
     if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Tens a certeza que queres destruir este treino e TODOS os seus exercícios? Esta ação não pode ser revertida.');
+      const confirmed = window.confirm('Tens a certeza que queres destruir este treino e TODOS os seus exercícios?');
       if (confirmed) executeDeleteWorkout();
     } else {
       Alert.alert(
         'Apagar Treino',
-        'Tens a certeza que queres destruir este treino e TODOS os seus exercícios? Esta ação não pode ser revertida.',
+        'Tens a certeza que queres destruir este treino e TODOS os seus exercícios?',
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Destruir Treino', style: 'destructive', onPress: executeDeleteWorkout },
@@ -115,6 +107,7 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     );
   }
 
+  // AC 1: O cartão agora tem um botão de edição ao lado do caixote do lixo
   const renderExercise = ({ item }: any) => (
     <View style={styles.exerciseCard}>
       <View style={styles.exerciseInfo}>
@@ -124,12 +117,21 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         </Text>
       </View>
       
-      <TouchableOpacity 
-        style={styles.deleteExerciseBtn}
-        onPress={() => handleDeleteExercise(item.id, item.name)}
-      >
-        <Text style={styles.deleteIconText}>🗑️</Text>
-      </TouchableOpacity>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity 
+          style={styles.actionBtn}
+          onPress={() => navigation.navigate('EditExercise', { exercise: item })}
+        >
+          <Text style={styles.iconText}>✏️</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionBtn}
+          onPress={() => handleDeleteExercise(item.id, item.name)}
+        >
+          <Text style={styles.iconText}>🗑️</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -182,22 +184,19 @@ const styles = StyleSheet.create({
   description: { fontSize: 16, color: '#aaaaaa', marginBottom: 30 },
   listContainer: { flex: 1, backgroundColor: '#1e1e1e', borderRadius: 12, padding: 15, marginBottom: 20 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#ffffff', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 10 },
-  
   addButton: { backgroundColor: '#4285F4', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 15 },
   addButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
-
   emptyText: { fontSize: 15, color: '#aaaaaa', textAlign: 'center', marginTop: 30, lineHeight: 22 },
   errorText: { color: '#ff4444', fontSize: 18, textAlign: 'center', marginTop: 50 },
   backButton: { backgroundColor: '#333333', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginTop: 20 },
   backButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
-  
   exerciseCard: { backgroundColor: '#2a2a2a', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4285F4', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: 18, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   exerciseDetails: { fontSize: 14, color: '#aaaaaa' },
-  deleteExerciseBtn: { padding: 5 },
-  deleteIconText: { fontSize: 20 },
-
+  actionButtons: { flexDirection: 'row', alignItems: 'center' },
+  actionBtn: { padding: 5, marginLeft: 10 },
+  iconText: { fontSize: 20 },
   deleteWorkoutBtn: { backgroundColor: '#ff4444', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   deleteWorkoutText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' }
 });
