@@ -174,6 +174,47 @@ app.get('/api/workouts/detail/:workoutId', async (req, res) => {
   }
 });
 
+// AC 1: Apagar um exercício específico (DELETE)
+app.delete('/api/exercises/:exerciseId', async (req, res) => {
+  try {
+    const { exerciseId } = req.params;
+
+    // O Prisma vai à base de dados e destrói esta linha
+    await prisma.exercise.delete({
+      where: { id: exerciseId },
+    });
+
+    console.log(`🗑️ Exercício ${exerciseId} apagado com sucesso!`);
+    res.status(200).json({ message: 'Exercício apagado com sucesso!' });
+  } catch (error) {
+    console.error('❌ Erro ao apagar exercício:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao apagar o exercício.' });
+  }
+});
+
+// AC 2: Apagar um treino inteiro e os seus exercícios (DELETE)
+app.delete('/api/workouts/:workoutId', async (req, res) => {
+  try {
+    const { workoutId } = req.params;
+
+    // 1º Passo: Apagar todos os exercícios que estão dentro deste treino
+    await prisma.exercise.deleteMany({
+      where: { workoutId: workoutId },
+    });
+
+    // 2º Passo: Apagar a "pasta" do treino
+    await prisma.workout.delete({
+      where: { id: workoutId },
+    });
+
+    console.log(`🗑️ Treino ${workoutId} e os seus exercícios foram apagados!`);
+    res.status(200).json({ message: 'Treino apagado com sucesso!' });
+  } catch (error) {
+    console.error('❌ Erro ao apagar treino:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao apagar o treino.' });
+  }
+});
+
 // ==========================================
 // ARRANQUE DO SERVIDOR
 // ==========================================
