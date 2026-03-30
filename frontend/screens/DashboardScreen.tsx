@@ -11,7 +11,6 @@ export default function DashboardScreen({ navigation }: any) {
   const [isLoading, setIsLoading] = useState(true);
 
   // O useFocusEffect garante que vamos buscar os dados sempre que o ecrã aparece
-  // (ex: quando voltas do ecrã de criar um treino novo)
   useFocusEffect(
     useCallback(() => {
       const fetchWorkouts = async () => {
@@ -55,12 +54,20 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.subtitle}>Olá, {user?.name}!</Text>
       </View>
 
-      {/* Botão Verde - US 11 */}
+      {/* NOVO BOTÃO ROXO DA IA - US 19 */}
+      <TouchableOpacity 
+        style={styles.aiButton} 
+        onPress={() => navigation.navigate('AIGenerator')}
+      >
+        <Text style={styles.aiButtonText}>✨ Gerar Treino com IA</Text>
+      </TouchableOpacity>
+
+      {/* Botão Verde Antigo - US 11 */}
       <TouchableOpacity 
         style={styles.createButton} 
         onPress={() => navigation.navigate('CreateWorkout')}
       >
-        <Text style={styles.createButtonText}>+ Criar Novo Treino</Text>
+        <Text style={styles.createButtonText}>+ Criar Novo Treino Manual</Text>
       </TouchableOpacity>
 
       {/* A Lista de Treinos - US 12 */}
@@ -102,6 +109,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   subtitle: { fontSize: 18, color: '#4285F4' },
   
+  // Estilos do Botão Mágico da IA
+  aiButton: { backgroundColor: '#8A2BE2', paddingVertical: 15, borderRadius: 8, elevation: 5, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#a350eb' },
+  aiButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
+
   createButton: { backgroundColor: '#4CAF50', paddingVertical: 15, borderRadius: 8, elevation: 3, alignItems: 'center', marginBottom: 25 },
   createButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
