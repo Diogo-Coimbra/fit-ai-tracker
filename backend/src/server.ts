@@ -219,6 +219,40 @@ app.delete('/api/workouts/:workoutId', async (req, res) => {
 });
 
 // ==========================================
+// ROTAS DE ATUALIZAÇÃO (UPDATE) - SPRINT 8
+// ==========================================
+
+// AC 1, 2 & 3: Atualizar um exercício específico (PUT)
+app.put('/api/exercises/:exerciseId', async (req, res) => {
+  try {
+    const { exerciseId } = req.params;
+    
+    // Extraímos apenas os campos que nos interessam do corpo do pedido
+    const { name, sets, reps, weight } = req.body;
+
+    // O Prisma faz a magia aqui: tudo o que for 'undefined' é ignorado,
+    // garantindo assim a atualização parcial (AC 2) de forma automática!
+    const updatedExercise = await prisma.exercise.update({
+      where: { id: exerciseId },
+      data: { 
+        name, 
+        sets, 
+        reps, 
+        weight 
+      },
+    });
+
+    console.log(`✏️ Exercício ${exerciseId} atualizado com sucesso!`);
+    
+    // AC 3: Devolvemos o exercício atualizado ao frontend
+    res.status(200).json(updatedExercise);
+  } catch (error) {
+    console.error('❌ Erro ao atualizar exercício:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao atualizar o exercício.' });
+  }
+});
+
+// ==========================================
 // ROTAS DE INTELIGÊNCIA ARTIFICIAL (IA) - SPRINT 6
 // ==========================================
 
