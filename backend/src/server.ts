@@ -115,6 +115,66 @@ app.get('/api/workouts/:userId', async (req, res) => {
 });
 
 // ==========================================
+// ROTAS DE EXERCÍCIOS (EXERCISES) - SPRINT 5
+// ==========================================
+
+// AC 1: Criar um novo exercício num treino (POST)
+app.post('/api/exercises', async (req, res) => {
+  try {
+    const { name, sets, reps, weight, workoutId } = req.body;
+
+    if (!name || !workoutId) {
+      return res.status(400).json({ error: 'O nome do exercício e o workoutId são obrigatórios!' });
+    }
+
+    const newExercise = await prisma.exercise.create({
+      data: {
+        name,
+        sets: sets || 3,
+        reps: reps || 10,
+        weight: weight || null,
+        workoutId,
+      },
+    });
+
+    console.log(`✅ Exercício "${name}" adicionado ao treino com sucesso!`);
+    res.status(201).json(newExercise);
+  } catch (error) {
+    console.error('❌ Erro ao criar exercício:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao criar o exercício.' });
+  }
+});
+
+// AC 2: Buscar um treino específico e todos os seus exercícios (GET)
+app.get('/api/workouts/detail/:workoutId', async (req, res) => {
+  try {
+    const { workoutId } = req.params;
+
+    const workoutDetails = await prisma.workout.findUnique({
+      where: {
+        id: workoutId,
+      },
+      include: {
+        exercises: {
+          orderBy: {
+            createdAt: 'asc', 
+          }
+        },
+      },
+    });
+
+    if (!workoutDetails) {
+      return res.status(404).json({ error: 'Treino não encontrado.' });
+    }
+
+    res.status(200).json(workoutDetails);
+  } catch (error) {
+    console.error('❌ Erro ao buscar detalhes do treino:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao buscar os detalhes.' });
+  }
+});
+
+// ==========================================
 // ARRANQUE DO SERVIDOR
 // ==========================================
 
