@@ -71,7 +71,6 @@ export default function DashboardScreen({ navigation }: any) {
         
         {/* O cabeçalho agora tem o fundo e bordas superiores arredondadas */}
         <TouchableOpacity 
-          // Usamos um array de estilos para aplicar estilos condicionalmente
           style={[
             styles.expandHeader,
             isExpanded && styles.expandHeaderExpanded // Aplica bordas retas se expandido
@@ -104,6 +103,14 @@ export default function DashboardScreen({ navigation }: any) {
         )}
       </View>
 
+      {/* US 28: AQUI ESTÁ O NOVO BOTÃO DE HISTÓRICO! */}
+      <TouchableOpacity 
+        style={styles.historyButton} 
+        onPress={() => navigation.navigate('History')}
+      >
+        <Text style={styles.historyButtonText}>Ver Histórico 📅</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity 
         style={styles.profileButton} 
         onPress={() => navigation.navigate('Profile')}
@@ -126,33 +133,33 @@ const styles = StyleSheet.create({
   createButton: { backgroundColor: '#4CAF50', paddingVertical: 15, borderRadius: 8, elevation: 3, alignItems: 'center', marginBottom: 25 },
   createButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
-  // Estilos do Acordeão Totalmente Revistos
-  accordionContainer: { marginBottom: 20 }, // Contentor sem flex
+  // Estilos do Acordeão
+  accordionContainer: { marginBottom: 20 },
   expandHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1e1e1e', // Fundo no cabeçalho
-    padding: 15, // Padding para o título
+    backgroundColor: '#1e1e1e',
+    padding: 15,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-    borderBottomLeftRadius: 12, // Borda inferior arredondada por defeito
+    borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
   },
-  expandHeaderExpanded: { // Estilos extra para quando está expandido
+  expandHeaderExpanded: { 
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    borderBottomWidth: 1, // Borda divisória
+    borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#ffffff' },
   expandIcon: { fontSize: 18 },
   
-  // O contentor de conteúdo (SÓ visível quando expandido)
+  // Contentor da lista do acordeão
   listContent: {
-    backgroundColor: '#1e1e1e', // Fundo cinzento SÓ aqui
-    padding: 15, // Padding para o conteúdo
-    paddingTop: 5, // Pequeno padding superior para separar da borda divisória
+    backgroundColor: '#1e1e1e',
+    padding: 15,
+    paddingTop: 5,
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
   },
@@ -164,6 +171,10 @@ const styles = StyleSheet.create({
   workoutDescription: { fontSize: 14, color: '#aaaaaa' },
   
   emptyText: { fontSize: 15, color: '#aaaaaa', textAlign: 'center', marginTop: 30, lineHeight: 22 },
+
+  // US 28: ESTILOS DO NOVO BOTÃO DE HISTÓRICO
+  historyButton: { backgroundColor: '#F29900', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginBottom: 15, elevation: 3 },
+  historyButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
   profileButton: { backgroundColor: '#333333', paddingVertical: 15, borderRadius: 8, alignItems: 'center' },
   profileButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
