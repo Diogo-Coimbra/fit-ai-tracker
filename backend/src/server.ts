@@ -380,6 +380,33 @@ app.post('/api/logs', async (req, res) => {
   }
 });
 
+// AC 1: Obter o histórico de treinos de um utilizador (GET)
+app.get('/api/logs/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const historyLogs = await prisma.workoutLog.findMany({
+      where: { 
+        userId: userId 
+      },
+      // AC 2: Ordenar do mais recente (descending) para o mais antigo
+      orderBy: {
+        createdAt: 'desc',
+      },
+      // AC 3: Trazer os dados do treino associado para podermos mostrar o nome no ecrã!
+      include: {
+        workout: true,
+      },
+    });
+
+    console.log(`📊 Histórico carregado para o utilizador ${userId}: ${historyLogs.length} treinos.`);
+    res.status(200).json(historyLogs);
+  } catch (error) {
+    console.error('❌ Erro ao ir buscar o histórico:', error);
+    res.status(500).json({ error: 'Erro interno ao obter o histórico de treinos.' });
+  }
+});
+
 // ==========================================
 // ARRANQUE DO SERVIDOR
 // ==========================================
