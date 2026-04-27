@@ -8,28 +8,38 @@ export default function DashboardScreen({ navigation }: any) {
   
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Controla se a lista está expandida (aberta) ou fechada.
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // NOVO ESTADO US 29: O nosso contador de suor!
+  const [totalLogs, setTotalLogs] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
-      const fetchWorkouts = async () => {
+      const fetchData = async () => {
         if (!user?.id) return;
         
         try {
           setIsLoading(true);
-          const response = await fetch(`http://192.168.1.80:3000/api/workouts/${user.id}`);
-          const data = await response.json();
-          setWorkouts(data);
+          
+          // 1. Vamos buscar os treinos normais
+          const workoutsResponse = await fetch(`http://192.168.1.80:3000/api/workouts/${user.id}`);
+          const workoutsData = await workoutsResponse.json();
+          setWorkouts(workoutsData);
+
+          // 2. Vamos buscar o histórico de logs (US 29 - AC 2 & 3)
+          const logsResponse = await fetch(`http://192.168.1.80:3000/api/logs/${user.id}`);
+          const logsData = await logsResponse.json();
+          // Atualizamos o contador com o tamanho da lista de histórico
+          setTotalLogs(logsData.length || 0);
+
         } catch (error) {
-          console.error('❌ Erro ao ir buscar os treinos:', error);
+          console.error('❌ Erro ao ir buscar os dados do dashboard:', error);
         } finally {
           setIsLoading(false);
         }
       };
 
-      fetchWorkouts();
+      fetchData();
     }, [user?.id])
   );
 
@@ -52,6 +62,15 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.subtitle}>Olá, {user?.name}!</Text>
       </View>
 
+      {/* NOVO CARTÃO US 29: O Cartão de Estatísticas (AC 1) */}
+      <View style={styles.statsCard}>
+        <View style={styles.statsInfo}>
+          <Text style={styles.statsNumber}>{totalLogs}</Text>
+          <Text style={styles.statsLabel}>Treinos{'\n'}Concluídos</Text>
+        </View>
+        <Text style={styles.statsIcon}>🏆</Text>
+      </View>
+
       <TouchableOpacity 
         style={styles.aiButton} 
         onPress={() => navigation.navigate('AIGenerator')}
@@ -66,22 +85,15 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.createButtonText}>+ Criar Novo Treino Manual</Text>
       </TouchableOpacity>
 
-      {/* O ACORDEÃO AGORA É O CONTENTOR EXTERNO (sem flex) */}
       <View style={styles.accordionContainer}>
-        
-        {/* O cabeçalho agora tem o fundo e bordas superiores arredondadas */}
         <TouchableOpacity 
-          style={[
-            styles.expandHeader,
-            isExpanded && styles.expandHeaderExpanded // Aplica bordas retas se expandido
-          ]} 
+          style={[styles.expandHeader, isExpanded && styles.expandHeaderExpanded]} 
           onPress={() => setIsExpanded(!isExpanded)}
         >
           <Text style={styles.sectionTitle}>Os Meus Treinos 💪</Text>
           <Text style={styles.expandIcon}>{isExpanded ? '🔼' : '🔽'}</Text>
         </TouchableOpacity>
         
-        {/* SÓ envolvemos o contentor cinzento de conteúdo se expandido */}
         {isExpanded && (
           <View style={styles.listContent}>
             {isLoading ? (
@@ -103,7 +115,6 @@ export default function DashboardScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* US 28: AQUI ESTÁ O NOVO BOTÃO DE HISTÓRICO! */}
       <TouchableOpacity 
         style={styles.historyButton} 
         onPress={() => navigation.navigate('History')}
@@ -127,52 +138,33 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   subtitle: { fontSize: 18, color: '#4285F4' },
   
+  // NOVOS ESTILOS US 29: Cartão de Estatísticas
+  statsCard: { backgroundColor: '#1e1e1e', padding: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 25, borderWidth: 1, borderColor: '#333' },
+  statsInfo: { flexDirection: 'row', alignItems: 'center' },
+  statsNumber: { fontSize: 36, fontWeight: 'bold', color: '#FFD700', marginRight: 15 },
+  statsLabel: { fontSize: 14, color: '#aaaaaa', textTransform: 'uppercase', fontWeight: 'bold' },
+  statsIcon: { fontSize: 40 },
+
   aiButton: { backgroundColor: '#8A2BE2', paddingVertical: 15, borderRadius: 8, elevation: 5, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#a350eb' },
   aiButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
 
   createButton: { backgroundColor: '#4CAF50', paddingVertical: 15, borderRadius: 8, elevation: 3, alignItems: 'center', marginBottom: 25 },
   createButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
-  // Estilos do Acordeão
   accordionContainer: { marginBottom: 20 },
-  expandHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1e1e1e',
-    padding: 15,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-  },
-  expandHeaderExpanded: { 
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
+  expandHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e1e1e', padding: 15, borderTopLeftRadius: 12, borderTopRightRadius: 12, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  expandHeaderExpanded: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomWidth: 1, borderBottomColor: '#333' },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#ffffff' },
   expandIcon: { fontSize: 18 },
   
-  // Contentor da lista do acordeão
-  listContent: {
-    backgroundColor: '#1e1e1e',
-    padding: 15,
-    paddingTop: 5,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-  },
-
+  listContent: { backgroundColor: '#1e1e1e', padding: 15, paddingTop: 5, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
   flatListContent: { paddingBottom: 10 },
   
   workoutCard: { backgroundColor: '#2a2a2a', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4CAF50' },
   workoutName: { fontSize: 18, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   workoutDescription: { fontSize: 14, color: '#aaaaaa' },
-  
   emptyText: { fontSize: 15, color: '#aaaaaa', textAlign: 'center', marginTop: 30, lineHeight: 22 },
 
-  // US 28: ESTILOS DO NOVO BOTÃO DE HISTÓRICO
   historyButton: { backgroundColor: '#F29900', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginBottom: 15, elevation: 3 },
   historyButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
