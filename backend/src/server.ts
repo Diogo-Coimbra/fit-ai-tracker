@@ -400,7 +400,8 @@ app.post('/api/ai/generate-workout', async (req, res) => {
 // AC 1: Guardar um treino concluído
 app.post('/api/logs', async (req, res) => {
   try {
-    const { userId, workoutId } = req.body;
+    // US 35: Recebemos também o durationMinutes do frontend
+    const { userId, workoutId, durationMinutes } = req.body;
 
     if (!userId || !workoutId) {
       return res.status(400).json({ error: 'Faltam os IDs do utilizador ou do treino.' });
@@ -409,11 +410,12 @@ app.post('/api/logs', async (req, res) => {
     const newLog = await prisma.workoutLog.create({
       data: {
         userId,
-        workoutId
+        workoutId,
+        durationMinutes: durationMinutes || 0 // 👈 Guarda o tempo na base de dados!
       }
     });
 
-    console.log(`🏆 Treino ${workoutId} finalizado pelo utilizador ${userId}!`);
+    console.log(`🏆 Treino ${workoutId} finalizado pelo utilizador ${userId} em ${durationMinutes} min!`);
     res.status(201).json(newLog);
   } catch (error) {
     console.error('❌ Erro ao guardar histórico:', error);

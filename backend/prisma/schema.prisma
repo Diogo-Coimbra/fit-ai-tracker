@@ -63,6 +63,7 @@ model WorkoutLog {
   createdAt DateTime @default(now()) // Regista automaticamente o dia e hora
   userId    String
   workoutId String
+  durationMinutes Int      @default(0)
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   workout   Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)

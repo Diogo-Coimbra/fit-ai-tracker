@@ -15,6 +15,8 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
   // NOVO ESTADO US 31: Controla o loading do botão de duplicar
   const [isCloning, setIsCloning] = useState(false);
 
+  const [startTime] = useState<Date>(new Date());
+
   // Estados do Temporizador de Descanso (US 30)
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerState, setTimerState] = useState<'idle' | 'running' | 'finished'>('idle');
@@ -140,17 +142,26 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     
     setIsFinishing(true);
     try {
+      // 👇 US 35: Calcula a diferença entre a hora atual e a hora de entrada (em minutos)
+      const endTime = new Date();
+      const diffMs = endTime.getTime() - startTime.getTime();
+      const durationMinutes = Math.max(1, Math.floor(diffMs / 60000)); // Pelo menos 1 min!
+
       const response = await fetch('http://192.168.1.80:3000/api/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, workoutId: workoutDetails.id })
+        body: JSON.stringify({ 
+          userId: user.id, 
+          workoutId: workoutDetails.id,
+          durationMinutes // 👈 Mandamos o tempo para o backend!
+        })
       });
 
       if (response.ok) {
         if (Platform.OS === 'web') {
-          alert('Treino Finalizado! Parabéns, foste uma máquina hoje! 💪🏆');
+          alert(`Treino Finalizado! Suaste durante ${durationMinutes} minutos. Máquina! 💪🏆`);
         } else {
-          Alert.alert('Treino Finalizado! 🏆', 'Parabéns, foste uma máquina hoje! 💪');
+          Alert.alert('Treino Finalizado! 🏆', `Suaste durante ${durationMinutes} minutos. Máquina! 💪`);
         }
         navigation.navigate('Dashboard');
       } else {

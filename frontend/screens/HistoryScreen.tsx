@@ -41,6 +41,7 @@ export default function HistoryScreen({ navigation }: any) {
   };
 
   // AC 2: Cartão do histórico com a data e o nome do treino
+  // AC 2 & 3: Cartão do histórico com data, nome e DURAÇÃO (US 35)
   const renderLog = ({ item }: any) => (
     <View style={styles.logCard}>
       <View style={styles.logIconContainer}>
@@ -48,7 +49,14 @@ export default function HistoryScreen({ navigation }: any) {
       </View>
       <View style={styles.logInfo}>
         <Text style={styles.workoutName}>{item.workout?.name || 'Treino Apagado'}</Text>
-        <Text style={styles.logDate}>📅 {formatDate(item.createdAt)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+          <Text style={styles.logDate}>📅 {formatDate(item.createdAt)}</Text>
+          {item.durationMinutes > 0 && (
+            <Text style={{ color: '#F29900', fontSize: 13, marginLeft: 10, fontWeight: 'bold' }}>
+              ⏱️ {item.durationMinutes} min
+            </Text>
+          )}
+        </View>
       </View>
     </View>
   );
