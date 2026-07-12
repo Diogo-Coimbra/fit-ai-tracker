@@ -11,14 +11,14 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
   const [isLoading, setIsLoading] = useState(true);
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
   const [isFinishing, setIsFinishing] = useState(false);
+  
+  // NOVO ESTADO US 31: Controla o loading do botão de duplicar
+  const [isCloning, setIsCloning] = useState(false);
 
-  // ==========================================
-  // US 30: ESTADOS DO TEMPORIZADOR DE DESCANSO
-  // ==========================================
+  // Estados do Temporizador de Descanso (US 30)
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerState, setTimerState] = useState<'idle' | 'running' | 'finished'>('idle');
 
-  // Lógica do temporizador (conta 1 segundo de cada vez)
   useEffect(() => {
     let interval: any;
     if (timerState === 'running' && timeLeft > 0) {
@@ -26,12 +26,11 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (timerState === 'running' && timeLeft === 0) {
-      setTimerState('finished'); // Acabou o tempo!
+      setTimerState('finished');
     }
     return () => clearInterval(interval);
   }, [timerState, timeLeft]);
 
-  // Funções de controlo do temporizador
   const startTimer = (seconds: number) => {
     setTimeLeft(seconds);
     setTimerState('running');
@@ -47,7 +46,6 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     const s = seconds % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
-  // ==========================================
 
   const fetchDetails = async () => {
     try {
@@ -160,10 +158,35 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
       }
     } catch (error) {
       console.error('❌ Erro ao finalizar treino:', error);
-      if (Platform.OS === 'web') alert('Erro ao finalizar o treino. Tenta de novo!');
-      else Alert.alert('Erro', 'Não foi possível registar o treino. Tenta de novo!');
+      if (Platform.OS === 'web') alert('Erro ao finalizar o treino.');
+      else Alert.alert('Erro', 'Não foi possível registar o treino.');
     } finally {
       setIsFinishing(false);
+    }
+  };
+
+  // 👇 NOVA FUNÇÃO US 31: Lógica para clonar o treino
+  const handleCloneWorkout = async () => {
+    setIsCloning(true);
+    try {
+      const response = await fetch(`http://192.168.1.80:3000/api/workouts/${workoutId}/clone`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const clonedWorkout = await response.json();
+        
+        // AC 3: Navega imediatamente para a cópia (usamos replace para não acumular ecrãs)
+        navigation.replace('WorkoutDetails', { workoutId: clonedWorkout.id });
+      } else {
+        throw new Error('Falha ao duplicar o treino na base de dados.');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao duplicar treino:', error);
+      if (Platform.OS === 'web') alert('Erro ao duplicar o treino. Tenta de novo!');
+      else Alert.alert('Erro', 'Não foi possível duplicar o treino. Tenta de novo!');
+    } finally {
+      setIsCloning(false);
     }
   };
 
@@ -186,17 +209,10 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         </View>
         
         <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.actionBtn}
-            onPress={() => navigation.navigate('EditExercise', { exercise: item })}
-          >
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('EditExercise', { exercise: item })}>
             <Text style={styles.iconText}>✏️</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionBtn}
-            onPress={() => handleDeleteExercise(item.id, item.name)}
-          >
+          <TouchableOpacity style={styles.actionBtn} onPress={() => handleDeleteExercise(item.id, item.name)}>
             <Text style={styles.iconText}>🗑️</Text>
           </TouchableOpacity>
         </View>
@@ -215,12 +231,8 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         <Text style={styles.description}>{workoutDetails.description}</Text>
       ) : null}
 
-      {/* ==========================================
-          US 30: COMPONENTE DO TEMPORIZADOR
-          ========================================== */}
       <View style={[styles.timerContainer, timerState === 'finished' && styles.timerFinished]}>
         <Text style={styles.timerTitle}>⏱️ Descanso</Text>
-
         {timerState === 'finished' ? (
           <View style={styles.timerFinishedState}>
             <Text style={styles.timerFinishedText}>BORA LÁ! ACABOU O DESCANSO!</Text>
@@ -247,16 +259,12 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
           </View>
         )}
       </View>
-      {/* ========================================== */}
 
       <View style={styles.listContainer}>
         <Text style={styles.sectionTitle}>Modo de Treino 🏋️‍♂️</Text>
         <Text style={styles.instructionText}>Toca num exercício para marcá-lo como concluído!</Text>
         
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AddExercise', { workoutId: workoutDetails?.id })}
-        >
+        <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddExercise', { workoutId: workoutDetails?.id })}>
           <Text style={styles.addButtonText}>+ Adicionar Exercício</Text>
         </TouchableOpacity>
 
@@ -265,21 +273,27 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
           keyExtractor={(item) => item.id}
           renderItem={renderExercise}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              Ainda não tens exercícios neste treino. Começa por adicionar o primeiro aqui em cima!
-            </Text>
+            <Text style={styles.emptyText}>Ainda não tens exercícios neste treino. Começa por adicionar o primeiro aqui em cima!</Text>
           }
         />
       </View>
 
+      {/* BLOCO DE BOTÕES DE AÇÃO */}
       <TouchableOpacity 
         style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} 
         onPress={handleFinishWorkout}
         disabled={isFinishing}
       >
-        <Text style={styles.finishBtnText}>
-          {isFinishing ? 'A registar...' : '🏆 Finalizar Treino'}
-        </Text>
+        <Text style={styles.finishBtnText}>{isFinishing ? 'A registar...' : '🏆 Finalizar Treino'}</Text>
+      </TouchableOpacity>
+
+      {/* 👇 NOVO BOTÃO US 31: Duplicar Treino */}
+      <TouchableOpacity 
+        style={[styles.cloneWorkoutBtn, isCloning && styles.cloneWorkoutBtnDisabled]} 
+        onPress={handleCloneWorkout}
+        disabled={isCloning}
+      >
+        <Text style={styles.cloneWorkoutText}>{isCloning ? 'A duplicar...' : '👯 Duplicar Treino'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.deleteWorkoutBtn} onPress={handleDeleteWorkout}>
@@ -302,25 +316,17 @@ const styles = StyleSheet.create({
   addButton: { backgroundColor: '#4285F4', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 15 },
   addButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   emptyText: { fontSize: 15, color: '#aaaaaa', textAlign: 'center', marginTop: 30, lineHeight: 22 },
-  errorText: { color: '#ff4444', fontSize: 18, textAlign: 'center', marginTop: 50 },
-  backButton: { backgroundColor: '#333333', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginTop: 20 },
-  backButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
   exerciseCard: { backgroundColor: '#2a2a2a', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4285F4', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: 18, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   exerciseDetails: { fontSize: 14, color: '#aaaaaa' },
-  
   exerciseCardCompleted: { borderLeftColor: '#4CAF50', backgroundColor: '#1a1a1a', opacity: 0.6 },
   exerciseTextCompleted: { textDecorationLine: 'line-through', color: '#666' },
-
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   actionBtn: { padding: 5, marginLeft: 10 },
   iconText: { fontSize: 20 },
 
-  // ==========================================
-  // NOVOS ESTILOS DO TEMPORIZADOR
-  // ==========================================
   timerContainer: { backgroundColor: '#222', padding: 15, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#444' },
   timerFinished: { backgroundColor: '#b32400', borderColor: '#ff3300' },
   timerTitle: { fontSize: 16, color: '#fff', fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
@@ -332,11 +338,15 @@ const styles = StyleSheet.create({
   timerBtn: { backgroundColor: '#4285F4', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8 },
   timerBtnStop: { backgroundColor: '#ff4444', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8 },
   timerBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-  // ==========================================
 
-  finishBtn: { backgroundColor: '#FFD700', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 15, elevation: 5, shadowColor: '#FFD700', shadowOpacity: 0.4, shadowRadius: 8 },
+  finishBtn: { backgroundColor: '#FFD700', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10, elevation: 5, shadowColor: '#FFD700', shadowOpacity: 0.4, shadowRadius: 8 },
   finishBtnDisabled: { backgroundColor: '#b39700', opacity: 0.7 },
   finishBtnText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
+
+  // 👇 ESTILOS DO NOVO BOTÃO DE CLONAR
+  cloneWorkoutBtn: { backgroundColor: '#4285F4', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
+  cloneWorkoutBtnDisabled: { backgroundColor: '#2c5aa0', opacity: 0.7 },
+  cloneWorkoutText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
 
   deleteWorkoutBtn: { backgroundColor: '#ff4444', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   deleteWorkoutText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' }

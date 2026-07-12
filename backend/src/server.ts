@@ -117,6 +117,49 @@ app.get('/api/workouts/:userId', async (req, res) => {
   }
 });
 
+// AC 1 (US 31): Clonar um treino existente e os seus exercícios (POST)
+app.post('/api/workouts/:workoutId/clone', async (req, res) => {
+  try {
+    const { workoutId } = req.params;
+
+    // 1. Ir buscar o ficheiro do treino original e os exercícios que tem lá dentro
+    const originalWorkout = await prisma.workout.findUnique({
+      where: { id: workoutId },
+      include: { exercises: true },
+    });
+
+    if (!originalWorkout) {
+      return res.status(404).json({ error: 'Treino original não encontrado.' });
+    }
+
+    // 2. Criar a cópia exata usando o "Nested Create" do Prisma
+    const clonedWorkout = await prisma.workout.create({
+      data: {
+        name: `${originalWorkout.name} (Cópia)`, // Adicionamos a etiqueta para se distinguir
+        description: originalWorkout.description,
+        userId: originalWorkout.userId, // Mantemos o mesmo dono
+        
+        // A magia acontece aqui: criamos logo os exercícios todos ligados ao novo treino!
+        exercises: {
+          create: originalWorkout.exercises.map((ex) => ({
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight,
+          })),
+        },
+      },
+    });
+
+    console.log(`👯 Treino "${originalWorkout.name}" clonado com sucesso!`);
+    
+    // Devolvemos o novo treino para o frontend poder redirecionar (AC 3)
+    res.status(201).json(clonedWorkout);
+  } catch (error) {
+    console.error('❌ Erro ao clonar treino:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao clonar o treino.' });
+  }
+});
 // ==========================================
 // ROTAS DE EXERCÍCIOS (EXERCISES) - SPRINT 5
 // ==========================================
