@@ -10,8 +10,13 @@ export default function DashboardScreen({ navigation }: any) {
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   
-  // NOVO ESTADO US 29: O nosso contador de suor!
   const [totalLogs, setTotalLogs] = useState(0);
+  
+  // ==========================================
+  // US 32: ESTADOS DO PROGRESSO SEMANAL
+  // ==========================================
+  const [weeklyLogs, setWeeklyLogs] = useState(0);
+  const WEEKLY_GOAL = 3; // O teu objetivo de treinos por semana!
 
   useFocusEffect(
     useCallback(() => {
@@ -21,16 +26,36 @@ export default function DashboardScreen({ navigation }: any) {
         try {
           setIsLoading(true);
           
-          // 1. Vamos buscar os treinos normais
+          // 1. Ir buscar os treinos normais
           const workoutsResponse = await fetch(`http://192.168.1.80:3000/api/workouts/${user.id}`);
           const workoutsData = await workoutsResponse.json();
           setWorkouts(workoutsData);
 
-          // 2. Vamos buscar o histórico de logs (US 29 - AC 2 & 3)
+          // 2. Ir buscar o histórico de logs
           const logsResponse = await fetch(`http://192.168.1.80:3000/api/logs/${user.id}`);
           const logsData = await logsResponse.json();
-          // Atualizamos o contador com o tamanho da lista de histórico
           setTotalLogs(logsData.length || 0);
+
+          // 3. Filtrar apenas os treinos desta semana (Segunda a Domingo)
+          const now = new Date();
+          const dayOfWeek = now.getDay() || 7; // No JS, Domingo é 0. Passamos para 7.
+          
+          // Descobrir a data de Segunda-feira (às 00:00:00)
+          const monday = new Date(now);
+          monday.setDate(now.getDate() - dayOfWeek + 1);
+          monday.setHours(0, 0, 0, 0);
+
+          // Descobrir a data de Domingo (às 23:59:59)
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+          sunday.setHours(23, 59, 59, 999);
+
+          const thisWeekLogs = logsData.filter((log: any) => {
+            const logDate = new Date(log.createdAt);
+            return logDate >= monday && logDate <= sunday;
+          });
+
+          setWeeklyLogs(thisWeekLogs.length);
 
         } catch (error) {
           console.error('❌ Erro ao ir buscar os dados do dashboard:', error);
@@ -55,6 +80,19 @@ export default function DashboardScreen({ navigation }: any) {
     </TouchableOpacity>
   );
 
+  // ==========================================
+  // Lógica Visual do Progresso Semanal (Textos e Tamanho da Barra)
+  // ==========================================
+  let motivationalText = "Bora começar a semana! 💪";
+  if (weeklyLogs > 0 && weeklyLogs < WEEKLY_GOAL) {
+    motivationalText = `Faltam ${WEEKLY_GOAL - weeklyLogs} treinos para o objetivo! 🔥`;
+  } else if (weeklyLogs >= WEEKLY_GOAL) {
+    motivationalText = "Objetivo Atingido! És máquina! 🎉";
+  }
+  
+  // Limita a barra a 100% caso treines mais que o objetivo
+  const progressPercent = Math.min((weeklyLogs / WEEKLY_GOAL) * 100, 100);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -62,14 +100,30 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.subtitle}>Olá, {user?.name}!</Text>
       </View>
 
-      {/* NOVO CARTÃO US 29: O Cartão de Estatísticas (AC 1) */}
       <View style={styles.statsCard}>
         <View style={styles.statsInfo}>
           <Text style={styles.statsNumber}>{totalLogs}</Text>
-          <Text style={styles.statsLabel}>Treinos{'\n'}Concluídos</Text>
+          <Text style={styles.statsLabel}>Treinos{'\n'}Totais</Text>
         </View>
         <Text style={styles.statsIcon}>🏆</Text>
       </View>
+
+      {/* ==========================================
+          US 32: CARTÃO DE PROGRESSO SEMANAL
+          ========================================== */}
+      <View style={styles.weeklyContainer}>
+        <View style={styles.weeklyHeader}>
+          <Text style={styles.weeklyTitle}>Progresso Semanal</Text>
+          <Text style={styles.weeklyGoalText}>{weeklyLogs} / {WEEKLY_GOAL}</Text>
+        </View>
+        
+        <View style={styles.progressBarBg}>
+          <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+        </View>
+        
+        <Text style={styles.weeklyMotivation}>{motivationalText}</Text>
+      </View>
+      {/* ========================================== */}
 
       <TouchableOpacity 
         style={styles.aiButton} 
@@ -138,12 +192,23 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   subtitle: { fontSize: 18, color: '#4285F4' },
   
-  // NOVOS ESTILOS US 29: Cartão de Estatísticas
-  statsCard: { backgroundColor: '#1e1e1e', padding: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 25, borderWidth: 1, borderColor: '#333' },
+  statsCard: { backgroundColor: '#1e1e1e', padding: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, borderWidth: 1, borderColor: '#333' },
   statsInfo: { flexDirection: 'row', alignItems: 'center' },
   statsNumber: { fontSize: 36, fontWeight: 'bold', color: '#FFD700', marginRight: 15 },
   statsLabel: { fontSize: 14, color: '#aaaaaa', textTransform: 'uppercase', fontWeight: 'bold' },
   statsIcon: { fontSize: 40 },
+
+  // ==========================================
+  // ESTILOS DO PROGRESSO SEMANAL
+  // ==========================================
+  weeklyContainer: { backgroundColor: '#1e1e1e', padding: 15, borderRadius: 12, marginBottom: 25, borderWidth: 1, borderColor: '#333' },
+  weeklyHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  weeklyTitle: { fontSize: 16, color: '#fff', fontWeight: 'bold' },
+  weeklyGoalText: { fontSize: 16, color: '#4CAF50', fontWeight: 'bold' },
+  progressBarBg: { height: 12, backgroundColor: '#333', borderRadius: 6, overflow: 'hidden', marginBottom: 10 },
+  progressBarFill: { height: '100%', backgroundColor: '#4CAF50', borderRadius: 6 },
+  weeklyMotivation: { fontSize: 14, color: '#aaaaaa', fontStyle: 'italic', textAlign: 'center' },
+  // ==========================================
 
   aiButton: { backgroundColor: '#8A2BE2', paddingVertical: 15, borderRadius: 8, elevation: 5, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#a350eb' },
   aiButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
