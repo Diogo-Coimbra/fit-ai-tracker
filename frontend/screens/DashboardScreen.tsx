@@ -11,12 +11,14 @@ export default function DashboardScreen({ navigation }: any) {
   const [isExpanded, setIsExpanded] = useState(false);
   
   const [totalLogs, setTotalLogs] = useState(0);
+  const [weeklyLogs, setWeeklyLogs] = useState(0);
   
   // ==========================================
-  // US 32: ESTADOS DO PROGRESSO SEMANAL
+  // US 34: LER O OBJETIVO DIRETAMENTE DO PERFIL (AC 1)
   // ==========================================
-  const [weeklyLogs, setWeeklyLogs] = useState(0);
-  const WEEKLY_GOAL = 3; // O teu objetivo de treinos por semana!
+  // O Zustand fornece o 'user' com o weeklyGoal atualizado.
+  // Se por algum motivo não existir (novo utilizador), assume 3 por defeito.
+  const WEEKLY_GOAL = user?.weeklyGoal || 3; 
 
   useFocusEffect(
     useCallback(() => {
@@ -26,26 +28,21 @@ export default function DashboardScreen({ navigation }: any) {
         try {
           setIsLoading(true);
           
-          // 1. Ir buscar os treinos normais
           const workoutsResponse = await fetch(`http://192.168.1.80:3000/api/workouts/${user.id}`);
           const workoutsData = await workoutsResponse.json();
           setWorkouts(workoutsData);
 
-          // 2. Ir buscar o histórico de logs
           const logsResponse = await fetch(`http://192.168.1.80:3000/api/logs/${user.id}`);
           const logsData = await logsResponse.json();
           setTotalLogs(logsData.length || 0);
 
-          // 3. Filtrar apenas os treinos desta semana (Segunda a Domingo)
           const now = new Date();
-          const dayOfWeek = now.getDay() || 7; // No JS, Domingo é 0. Passamos para 7.
+          const dayOfWeek = now.getDay() || 7; 
           
-          // Descobrir a data de Segunda-feira (às 00:00:00)
           const monday = new Date(now);
           monday.setDate(now.getDate() - dayOfWeek + 1);
           monday.setHours(0, 0, 0, 0);
 
-          // Descobrir a data de Domingo (às 23:59:59)
           const sunday = new Date(monday);
           sunday.setDate(monday.getDate() + 6);
           sunday.setHours(23, 59, 59, 999);
@@ -81,7 +78,7 @@ export default function DashboardScreen({ navigation }: any) {
   );
 
   // ==========================================
-  // Lógica Visual do Progresso Semanal (Textos e Tamanho da Barra)
+  // AC 2: A matemática e o texto adaptam-se automaticamente ao WEEKLY_GOAL dinâmico!
   // ==========================================
   let motivationalText = "Bora começar a semana! 💪";
   if (weeklyLogs > 0 && weeklyLogs < WEEKLY_GOAL) {
@@ -90,7 +87,6 @@ export default function DashboardScreen({ navigation }: any) {
     motivationalText = "Objetivo Atingido! És máquina! 🎉";
   }
   
-  // Limita a barra a 100% caso treines mais que o objetivo
   const progressPercent = Math.min((weeklyLogs / WEEKLY_GOAL) * 100, 100);
 
   return (
@@ -108,9 +104,6 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.statsIcon}>🏆</Text>
       </View>
 
-      {/* ==========================================
-          US 32: CARTÃO DE PROGRESSO SEMANAL
-          ========================================== */}
       <View style={styles.weeklyContainer}>
         <View style={styles.weeklyHeader}>
           <Text style={styles.weeklyTitle}>Progresso Semanal</Text>
@@ -123,7 +116,6 @@ export default function DashboardScreen({ navigation }: any) {
         
         <Text style={styles.weeklyMotivation}>{motivationalText}</Text>
       </View>
-      {/* ========================================== */}
 
       <TouchableOpacity 
         style={styles.aiButton} 
@@ -198,9 +190,6 @@ const styles = StyleSheet.create({
   statsLabel: { fontSize: 14, color: '#aaaaaa', textTransform: 'uppercase', fontWeight: 'bold' },
   statsIcon: { fontSize: 40 },
 
-  // ==========================================
-  // ESTILOS DO PROGRESSO SEMANAL
-  // ==========================================
   weeklyContainer: { backgroundColor: '#1e1e1e', padding: 15, borderRadius: 12, marginBottom: 25, borderWidth: 1, borderColor: '#333' },
   weeklyHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   weeklyTitle: { fontSize: 16, color: '#fff', fontWeight: 'bold' },
@@ -208,7 +197,6 @@ const styles = StyleSheet.create({
   progressBarBg: { height: 12, backgroundColor: '#333', borderRadius: 6, overflow: 'hidden', marginBottom: 10 },
   progressBarFill: { height: '100%', backgroundColor: '#4CAF50', borderRadius: 6 },
   weeklyMotivation: { fontSize: 14, color: '#aaaaaa', fontStyle: 'italic', textAlign: 'center' },
-  // ==========================================
 
   aiButton: { backgroundColor: '#8A2BE2', paddingVertical: 15, borderRadius: 8, elevation: 5, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#a350eb' },
   aiButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
