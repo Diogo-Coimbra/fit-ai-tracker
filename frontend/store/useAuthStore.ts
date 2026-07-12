@@ -6,6 +6,7 @@ interface User {
   name: string;
   email: string;
   picture?: string;
+  weeklyGoal?: number;
 }
 
 interface AuthState {

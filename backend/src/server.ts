@@ -266,34 +266,32 @@ app.delete('/api/workouts/:workoutId', async (req, res) => {
 // ==========================================
 
 // AC 1, 2 & 3: Atualizar o perfil do utilizador (PUT)
+// AC 1, 2 & 3: Atualizar o perfil do utilizador (PUT)
 app.put('/api/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    // Extraímos o nome e a foto do corpo do pedido
-    const { name, picture } = req.body;
+    // 👇 Agora extraímos também o weeklyGoal do body
+    const { name, picture, weeklyGoal } = req.body;
 
-    // AC 2 & 3: Atualizamos apenas o que foi enviado e devolvemos os dados seguros
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: { 
         name, 
-        picture 
+        picture,
+        weeklyGoal // 👈 Adicionamos aqui para guardar na BD
       },
-      // O 'select' é o nosso segurança de serviço: só deixa sair os campos que escolhermos!
-      // A password fica trancada na base de dados.
       select: {
         id: true,
         email: true,
         name: true,
         picture: true,
+        weeklyGoal: true, // 👈 Adicionamos aqui para o devolver ao frontend
         createdAt: true,
       }
     });
 
-    console.log(`👤 Perfil de ${updatedUser.name} atualizado na base de dados!`);
-    
-    // Devolvemos o utilizador atualizado (sem password) ao frontend
+    console.log(`👤 Perfil de ${updatedUser.name} atualizado (Objetivo: ${updatedUser.weeklyGoal}x/semana)!`);
     res.status(200).json(updatedUser);
   } catch (error) {
     console.error('❌ Erro ao atualizar perfil do utilizador:', error);

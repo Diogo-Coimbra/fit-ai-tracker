@@ -9,16 +9,18 @@ datasource db {
   provider = "postgresql"
 }
 
-// O nosso modelo de Utilizador (a tabela na base de dados)
 model User {
-  id        String   @id @default(uuid()) // Um ID único interno gerado automaticamente (ex: "123e4567-e89b-...")
-  googleId  String   @unique              // O ID da Google (não podem haver dois iguais, por isso @unique)
-  email     String   @unique              // O Email (também não se pode repetir)
-  name      String                        // O Nome do utilizador
-  picture   String?                       // A Foto do perfil (o '?' significa que é opcional)
-  createdAt DateTime @default(now())      // Guarda automaticamente a data e hora em que a conta foi criada
-  workouts  Workout[]
-  logs      WorkoutLog[]
+  id         String       @id @default(uuid())
+  googleId   String?      @unique  // 👈 O CAMPO QUE FALTAVA!
+  name       String
+  email      String       @unique
+  password   String?      // (Se no teu original estava só String, podes deixar String)
+  picture    String?
+  weeklyGoal Int          @default(3) // 👈 O nosso novo campo da US 33
+  createdAt  DateTime     @default(now())
+  
+  workouts   Workout[]
+  logs       WorkoutLog[]
 }
 
 // NOVO MODELO: O Treino (ex: "Dia de Peito", "Leg Day")
