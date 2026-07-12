@@ -1,20 +1,53 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, FlatList, Alert, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAuthStore } from '../store/useAuthStore'; // 👈 IMPORTANTE: Fomos buscar o cofre global (US 26)
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function WorkoutDetailsScreen({ route, navigation }: any) {
   const { workoutId } = route.params;
-  const { user } = useAuthStore(); // 👈 Vamos buscar o user logado para saber quem está a treinar (US 26)
+  const { user } = useAuthStore();
   
   const [workoutDetails, setWorkoutDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // ESTADO US 23: Guarda os IDs dos exercícios concluídos hoje
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
-  
-  // NOVO ESTADO US 26: Evita que o utilizador clique duas vezes no botão de finalizar
   const [isFinishing, setIsFinishing] = useState(false);
+
+  // ==========================================
+  // US 30: ESTADOS DO TEMPORIZADOR DE DESCANSO
+  // ==========================================
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timerState, setTimerState] = useState<'idle' | 'running' | 'finished'>('idle');
+
+  // Lógica do temporizador (conta 1 segundo de cada vez)
+  useEffect(() => {
+    let interval: any;
+    if (timerState === 'running' && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timerState === 'running' && timeLeft === 0) {
+      setTimerState('finished'); // Acabou o tempo!
+    }
+    return () => clearInterval(interval);
+  }, [timerState, timeLeft]);
+
+  // Funções de controlo do temporizador
+  const startTimer = (seconds: number) => {
+    setTimeLeft(seconds);
+    setTimerState('running');
+  };
+
+  const stopTimer = () => {
+    setTimerState('idle');
+    setTimeLeft(0);
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+  // ==========================================
 
   const fetchDetails = async () => {
     try {
@@ -104,7 +137,6 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     );
   };
 
-  // 👇 NOVA FUNÇÃO US 26: Regista a vitória no backend!
   const handleFinishWorkout = async () => {
     if (!user?.id || !workoutDetails?.id) return;
     
@@ -183,6 +215,40 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         <Text style={styles.description}>{workoutDetails.description}</Text>
       ) : null}
 
+      {/* ==========================================
+          US 30: COMPONENTE DO TEMPORIZADOR
+          ========================================== */}
+      <View style={[styles.timerContainer, timerState === 'finished' && styles.timerFinished]}>
+        <Text style={styles.timerTitle}>⏱️ Descanso</Text>
+
+        {timerState === 'finished' ? (
+          <View style={styles.timerFinishedState}>
+            <Text style={styles.timerFinishedText}>BORA LÁ! ACABOU O DESCANSO!</Text>
+            <TouchableOpacity style={styles.timerBtnStop} onPress={stopTimer}>
+              <Text style={styles.timerBtnText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.timerActiveState}>
+            <Text style={styles.timerDisplay}>{formatTime(timeLeft)}</Text>
+            <View style={styles.timerButtons}>
+              <TouchableOpacity style={styles.timerBtn} onPress={() => startTimer(60)}>
+                <Text style={styles.timerBtnText}>+ 60s</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.timerBtn} onPress={() => startTimer(90)}>
+                <Text style={styles.timerBtnText}>+ 90s</Text>
+              </TouchableOpacity>
+              {timerState === 'running' && (
+                <TouchableOpacity style={styles.timerBtnStop} onPress={stopTimer}>
+                  <Text style={styles.timerBtnText}>Parar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
+      {/* ========================================== */}
+
       <View style={styles.listContainer}>
         <Text style={styles.sectionTitle}>Modo de Treino 🏋️‍♂️</Text>
         <Text style={styles.instructionText}>Toca num exercício para marcá-lo como concluído!</Text>
@@ -206,7 +272,6 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         />
       </View>
 
-      {/* 👇 NOVO BOTÃO US 26: O Botão Dourado de Finalizar Treino */}
       <TouchableOpacity 
         style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} 
         onPress={handleFinishWorkout}
@@ -253,7 +318,22 @@ const styles = StyleSheet.create({
   actionBtn: { padding: 5, marginLeft: 10 },
   iconText: { fontSize: 20 },
 
-  // 👇 NOVOS ESTILOS DO BOTÃO DOURADO
+  // ==========================================
+  // NOVOS ESTILOS DO TEMPORIZADOR
+  // ==========================================
+  timerContainer: { backgroundColor: '#222', padding: 15, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#444' },
+  timerFinished: { backgroundColor: '#b32400', borderColor: '#ff3300' },
+  timerTitle: { fontSize: 16, color: '#fff', fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  timerActiveState: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  timerFinishedState: { alignItems: 'center' },
+  timerFinishedText: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 15 },
+  timerDisplay: { fontSize: 32, fontWeight: 'bold', color: '#4CAF50', width: '30%' },
+  timerButtons: { flexDirection: 'row', flex: 1, justifyContent: 'flex-end', gap: 10 },
+  timerBtn: { backgroundColor: '#4285F4', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8 },
+  timerBtnStop: { backgroundColor: '#ff4444', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8 },
+  timerBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  // ==========================================
+
   finishBtn: { backgroundColor: '#FFD700', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 15, elevation: 5, shadowColor: '#FFD700', shadowOpacity: 0.4, shadowRadius: 8 },
   finishBtnDisabled: { backgroundColor: '#b39700', opacity: 0.7 },
   finishBtnText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
