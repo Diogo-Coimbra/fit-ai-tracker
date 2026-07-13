@@ -11,12 +11,13 @@ datasource db {
 
 model User {
   id         String       @id @default(uuid())
-  googleId   String?      @unique  // 👈 O CAMPO QUE FALTAVA!
+  googleId   String?      @unique
   name       String
   email      String       @unique
-  password   String?      // (Se no teu original estava só String, podes deixar String)
+  password   String?      
   picture    String?
-  weeklyGoal Int          @default(3) // 👈 O nosso novo campo da US 33
+  weeklyGoal Int          @default(3)
+  currentStreak Int          @default(0)
   createdAt  DateTime     @default(now())
   
   workouts   Workout[]

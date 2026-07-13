@@ -12,10 +12,6 @@ export default function DashboardScreen({ navigation }: any) {
   
   const [totalLogs, setTotalLogs] = useState(0);
   const [weeklyLogs, setWeeklyLogs] = useState(0);
-
-  // ==========================================
-  // US 37: ESTADO PARA O TEMPO TOTAL DE TREINO
-  // ==========================================
   const [totalMinutes, setTotalMinutes] = useState(0);
   
   const WEEKLY_GOAL = user?.weeklyGoal || 3; 
@@ -36,7 +32,6 @@ export default function DashboardScreen({ navigation }: any) {
           const logsData = await logsResponse.json();
           setTotalLogs(logsData.length || 0);
 
-          // 👇 US 37 (AC 1): Somar todos os minutos do histórico
           const summedMinutes = logsData.reduce((acc: number, log: any) => {
             return acc + (log.durationMinutes || 0);
           }, 0);
@@ -71,7 +66,6 @@ export default function DashboardScreen({ navigation }: any) {
     }, [user?.id])
   );
 
-  // 👇 US 37 (AC 2): Função para formatar o tempo de forma limpa
   const formatTotalTime = (mins: number) => {
     if (mins === 0) return '0m';
     if (mins < 60) return `${mins}m`;
@@ -103,14 +97,19 @@ export default function DashboardScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      
+      {/* 👇 US 39: CABEÇALHO ATUALIZADO COM O SELO DO STREAK */}
       <View style={styles.header}>
         <Text style={styles.title}>Painel Principal 📊</Text>
-        <Text style={styles.subtitle}>Olá, {user?.name}!</Text>
+        <View style={styles.subtitleRow}>
+          <Text style={styles.subtitle}>Olá, {user?.name}!</Text>
+          <View style={styles.streakBadge}>
+            <Text style={styles.streakText}>🔥 Streak: {user?.currentStreak || 0} Semanas</Text>
+          </View>
+        </View>
       </View>
+      {/* ========================================== */}
 
-      {/* ==========================================
-          US 37: NOVA LINHA DE ESTATÍSTICAS (AC 2)
-          ========================================== */}
       <View style={styles.statsRow}>
         <View style={[styles.statsCard, styles.halfCard]}>
           <View style={styles.statsInfo}>
@@ -122,7 +121,6 @@ export default function DashboardScreen({ navigation }: any) {
 
         <View style={[styles.statsCard, styles.halfCard]}>
           <View style={styles.statsInfo}>
-            {/* O texto do tempo total precisa de ser um pouco menor para caber se for "100h 45m" */}
             <Text style={[styles.statsNumber, { fontSize: 24, color: '#4CAF50' }]}>
               {formatTotalTime(totalMinutes)}
             </Text>
@@ -131,7 +129,6 @@ export default function DashboardScreen({ navigation }: any) {
           <Text style={styles.statsIcon}>⏱️</Text>
         </View>
       </View>
-      {/* ========================================== */}
 
       <View style={styles.weeklyContainer}>
         <View style={styles.weeklyHeader}>
@@ -146,25 +143,16 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.weeklyMotivation}>{motivationalText}</Text>
       </View>
 
-      <TouchableOpacity 
-        style={styles.aiButton} 
-        onPress={() => navigation.navigate('AIGenerator')}
-      >
+      <TouchableOpacity style={styles.aiButton} onPress={() => navigation.navigate('AIGenerator')}>
         <Text style={styles.aiButtonText}>✨ Gerar Treino com IA</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.createButton} 
-        onPress={() => navigation.navigate('CreateWorkout')}
-      >
+      <TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('CreateWorkout')}>
         <Text style={styles.createButtonText}>+ Criar Novo Treino Manual</Text>
       </TouchableOpacity>
 
       <View style={styles.accordionContainer}>
-        <TouchableOpacity 
-          style={[styles.expandHeader, isExpanded && styles.expandHeaderExpanded]} 
-          onPress={() => setIsExpanded(!isExpanded)}
-        >
+        <TouchableOpacity style={[styles.expandHeader, isExpanded && styles.expandHeaderExpanded]} onPress={() => setIsExpanded(!isExpanded)}>
           <Text style={styles.sectionTitle}>Os Meus Treinos 💪</Text>
           <Text style={styles.expandIcon}>{isExpanded ? '🔼' : '🔽'}</Text>
         </TouchableOpacity>
@@ -179,28 +167,18 @@ export default function DashboardScreen({ navigation }: any) {
                 keyExtractor={(item) => item.id}
                 renderItem={renderWorkoutCard}
                 contentContainerStyle={styles.flatListContent}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>
-                    Ainda não tens treinos. Começa por criar o teu primeiro ali em cima! 🚀
-                  </Text>
-                }
+                ListEmptyComponent={<Text style={styles.emptyText}>Ainda não tens treinos. Começa por criar o teu primeiro ali em cima! 🚀</Text>}
               />
             )}
           </View>
         )}
       </View>
 
-      <TouchableOpacity 
-        style={styles.historyButton} 
-        onPress={() => navigation.navigate('History')}
-      >
+      <TouchableOpacity style={styles.historyButton} onPress={() => navigation.navigate('History')}>
         <Text style={styles.historyButtonText}>Ver Histórico 📅</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.profileButton} 
-        onPress={() => navigation.navigate('Profile')}
-      >
+      <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('Profile')}>
         <Text style={styles.profileButtonText}>Ver o Meu Perfil</Text>
       </TouchableOpacity>
     </View>
@@ -211,12 +189,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 50 },
   header: { alignItems: 'center', marginBottom: 20 },
   title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
-  subtitle: { fontSize: 18, color: '#4285F4' },
   
-  // 👇 US 37: NOVOS ESTILOS PARA METER OS CARTÕES LADO A LADO
+  // 👇 US 39: NOVOS ESTILOS DO STREAK
+  subtitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  subtitle: { fontSize: 18, color: '#4285F4' },
+  streakBadge: { backgroundColor: '#331a00', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#ff6600' },
+  streakText: { color: '#ff9900', fontSize: 14, fontWeight: 'bold' },
+  
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   halfCard: { flex: 1, marginHorizontal: 5, padding: 15 },
-  
   statsCard: { backgroundColor: '#1e1e1e', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#333' },
   statsInfo: { flex: 1 },
   statsNumber: { fontSize: 32, fontWeight: 'bold', color: '#FFD700', marginBottom: 2 },
@@ -233,7 +214,6 @@ const styles = StyleSheet.create({
 
   aiButton: { backgroundColor: '#8A2BE2', paddingVertical: 15, borderRadius: 8, elevation: 5, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#a350eb' },
   aiButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
-
   createButton: { backgroundColor: '#4CAF50', paddingVertical: 15, borderRadius: 8, elevation: 3, alignItems: 'center', marginBottom: 25 },
   createButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
@@ -242,10 +222,8 @@ const styles = StyleSheet.create({
   expandHeaderExpanded: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomWidth: 1, borderBottomColor: '#333' },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#ffffff' },
   expandIcon: { fontSize: 18 },
-  
   listContent: { backgroundColor: '#1e1e1e', padding: 15, paddingTop: 5, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
   flatListContent: { paddingBottom: 10 },
-  
   workoutCard: { backgroundColor: '#2a2a2a', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4CAF50' },
   workoutName: { fontSize: 18, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   workoutDescription: { fontSize: 14, color: '#aaaaaa' },
@@ -253,7 +231,6 @@ const styles = StyleSheet.create({
 
   historyButton: { backgroundColor: '#F29900', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginBottom: 15, elevation: 3 },
   historyButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
-  
   profileButton: { backgroundColor: '#333333', paddingVertical: 15, borderRadius: 8, alignItems: 'center' },
   profileButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
 });

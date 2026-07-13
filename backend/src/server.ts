@@ -436,22 +436,61 @@ app.post('/api/ai/generate-workout', async (req, res) => {
 // ==========================================
 
 // AC 1: Guardar um treino concluído
+// AC 1 & 2: Guardar um treino concluído e calcular o Streak
 app.post('/api/logs', async (req, res) => {
   try {
-    // US 35: Recebemos também o durationMinutes do frontend
     const { userId, workoutId, durationMinutes } = req.body;
 
     if (!userId || !workoutId) {
       return res.status(400).json({ error: 'Faltam os IDs do utilizador ou do treino.' });
     }
 
+    // 1. Gravar o treino no histórico
     const newLog = await prisma.workoutLog.create({
       data: {
         userId,
         workoutId,
-        durationMinutes: durationMinutes || 0 // 👈 Guarda o tempo na base de dados!
+        durationMinutes: durationMinutes || 0
       }
     });
+
+    // 2. LÓGICA DO STREAK (US 39)
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    
+    if (user) {
+      // Descobrir a janela de tempo da semana atual (Segunda a Domingo)
+      const now = new Date();
+      const dayOfWeek = now.getDay() || 7; 
+      
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayOfWeek + 1);
+      monday.setHours(0, 0, 0, 0);
+
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+
+      // Contar quantos treinos o utilizador já fez nesta janela (incluindo este que acabou de registar)
+      const weeklyLogsCount = await prisma.workoutLog.count({
+        where: {
+          userId: userId,
+          createdAt: {
+            gte: monday,
+            lte: sunday,
+          },
+        },
+      });
+
+      // Se o total de treinos da semana for EXATAMENTE igual ao objetivo, sobe o streak!
+      // (Usamos "===" para garantir que não sobe duas vezes na mesma semana se treinar a mais)
+      if (weeklyLogsCount === user.weeklyGoal) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { currentStreak: user.currentStreak + 1 }
+        });
+        console.log(`🔥 STREAK ATUALIZADO! O utilizador ${user.name} atingiu o objetivo semanal.`);
+      }
+    }
 
     console.log(`🏆 Treino ${workoutId} finalizado pelo utilizador ${userId} em ${durationMinutes} min!`);
     res.status(201).json(newLog);
