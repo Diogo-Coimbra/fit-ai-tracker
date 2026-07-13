@@ -528,6 +528,51 @@ app.get('/api/logs/:userId', async (req, res) => {
 });
 
 // ==========================================
+// US 40: ROTAS DE MÉTRICAS CORPORAIS
+// ==========================================
+
+// AC 2: Guardar novo registo de peso (POST)
+app.post('/api/metrics/weight', async (req, res) => {
+  try {
+    const { userId, weight } = req.body;
+
+    if (!userId || !weight) {
+      return res.status(400).json({ error: 'Faltam dados do utilizador ou o peso.' });
+    }
+
+    const newMetric = await prisma.bodyMetric.create({
+      data: {
+        userId,
+        weight: parseFloat(weight),
+      },
+    });
+
+    console.log(`⚖️ Novo peso registado para o user ${userId}: ${weight}kg`);
+    res.status(201).json(newMetric);
+  } catch (error) {
+    console.error('❌ Erro ao registar peso:', error);
+    res.status(500).json({ error: 'Erro ao registar a métrica corporal.' });
+  }
+});
+
+// AC 2: Obter histórico de peso do utilizador (GET)
+app.get('/api/metrics/weight/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const metrics = await prisma.bodyMetric.findMany({
+      where: { userId: userId },
+      orderBy: { createdAt: 'desc' }, // Ordena do mais recente para o mais antigo
+    });
+
+    res.status(200).json(metrics);
+  } catch (error) {
+    console.error('❌ Erro ao buscar histórico de peso:', error);
+    res.status(500).json({ error: 'Erro ao obter as métricas corporais.' });
+  }
+});
+
+// ==========================================
 // ARRANQUE DO SERVIDOR
 // ==========================================
 

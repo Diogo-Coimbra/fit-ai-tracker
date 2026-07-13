@@ -7,6 +7,7 @@ interface User {
   email: string;
   picture?: string;
   weeklyGoal?: number;
+  currentStreak?: number;
 }
 
 interface AuthState {
