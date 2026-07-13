@@ -164,6 +164,44 @@ app.post('/api/workouts/:workoutId/clone', async (req, res) => {
 // ROTAS DE EXERCÍCIOS (EXERCISES) - SPRINT 5
 // ==========================================
 
+// AC 1 (US 36): Obter o Recorde Pessoal (PR) de um exercício específico (GET)
+app.get('/api/exercises/:userId/pr/:exerciseName', async (req, res) => {
+  try {
+    const { userId, exerciseName } = req.params;
+
+    // A magia do Prisma: Procura o exercício com maior peso filtrando por nome e por treinos concluídos
+    const prExercise = await prisma.exercise.findFirst({
+      where: {
+        name: {
+          equals: exerciseName,
+          mode: 'insensitive', // Ignora maiúsculas/minúsculas para evitar falhas se houver erros de digitação
+        },
+        workout: {
+          userId: userId,
+          logs: {
+            some: {}, // Garante que o treino foi finalizado pelo menos uma vez
+          },
+        },
+        weight: {
+          not: null, // Ignora exercícios que não tenham peso definido
+        },
+      },
+      orderBy: {
+        weight: 'desc', // Ordena do maior peso para o menor
+      },
+    });
+
+    // Se encontrar o exercício, devolve o peso. Se não, devolve 0.
+    const maxWeight = prExercise ? prExercise.weight : 0;
+
+    console.log(`🏆 PR detetado para "${exerciseName}": ${maxWeight}kg (Utilizador: ${userId})`);
+    res.status(200).json({ pr: maxWeight });
+  } catch (error) {
+    console.error('❌ Erro ao buscar PR do exercício:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao obter o recorde pessoal.' });
+  }
+});
+
 // AC 1: Criar um novo exercício num treino (POST)
 app.post('/api/exercises', async (req, res) => {
   try {

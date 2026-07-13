@@ -11,22 +11,22 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
   const [isLoading, setIsLoading] = useState(true);
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
   const [isFinishing, setIsFinishing] = useState(false);
-  
-  // NOVO ESTADO US 31: Controla o loading do botão de duplicar
   const [isCloning, setIsCloning] = useState(false);
-
   const [startTime] = useState<Date>(new Date());
 
-  // Estados do Temporizador de Descanso (US 30)
+  // ==========================================
+  // US 36: ESTADO PARA GUARDAR OS RECORDES PESSOAIS
+  // ==========================================
+  const [exercisePRs, setExercisePRs] = useState<Record<string, number>>({});
+
+  // Estados do Temporizador de Descanso
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerState, setTimerState] = useState<'idle' | 'running' | 'finished'>('idle');
 
   useEffect(() => {
     let interval: any;
     if (timerState === 'running' && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
+      interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     } else if (timerState === 'running' && timeLeft === 0) {
       setTimerState('finished');
     }
@@ -49,12 +49,45 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  // ==========================================
+  // US 36: FUNÇÃO PARA BUSCAR OS PRs DE TODOS OS EXERCÍCIOS
+  // ==========================================
+  const fetchPRs = async (exercises: any[]) => {
+    if (!user?.id || !exercises || exercises.length === 0) return;
+
+    const prData: Record<string, number> = {};
+    
+    // Fazemos os pedidos todos em paralelo para ser instantâneo
+    await Promise.all(
+      exercises.map(async (ex) => {
+        try {
+          const response = await fetch(`http://192.168.1.80:3000/api/exercises/${user.id}/pr/${encodeURIComponent(ex.name)}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.pr > 0) {
+              prData[ex.name] = data.pr; // Guarda o PR usando o nome do exercício como chave
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Erro ao buscar PR para ${ex.name}:`, error);
+        }
+      })
+    );
+    
+    setExercisePRs(prData);
+  };
+
   const fetchDetails = async () => {
     try {
       setIsLoading(true);
       const response = await fetch(`http://192.168.1.80:3000/api/workouts/detail/${workoutId}`);
       const data = await response.json();
       setWorkoutDetails(data);
+      
+      // Assim que os exercícios chegam, vamos ver se há recordes para eles!
+      if (data?.exercises) {
+        await fetchPRs(data.exercises);
+      }
     } catch (error) {
       console.error('❌ Erro ao ir buscar os detalhes:', error);
     } finally {
@@ -142,27 +175,19 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     
     setIsFinishing(true);
     try {
-      // 👇 US 35: Calcula a diferença entre a hora atual e a hora de entrada (em minutos)
       const endTime = new Date();
       const diffMs = endTime.getTime() - startTime.getTime();
-      const durationMinutes = Math.max(1, Math.floor(diffMs / 60000)); // Pelo menos 1 min!
+      const durationMinutes = Math.max(1, Math.floor(diffMs / 60000));
 
       const response = await fetch('http://192.168.1.80:3000/api/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: user.id, 
-          workoutId: workoutDetails.id,
-          durationMinutes // 👈 Mandamos o tempo para o backend!
-        })
+        body: JSON.stringify({ userId: user.id, workoutId: workoutDetails.id, durationMinutes })
       });
 
       if (response.ok) {
-        if (Platform.OS === 'web') {
-          alert(`Treino Finalizado! Suaste durante ${durationMinutes} minutos. Máquina! 💪🏆`);
-        } else {
-          Alert.alert('Treino Finalizado! 🏆', `Suaste durante ${durationMinutes} minutos. Máquina! 💪`);
-        }
+        if (Platform.OS === 'web') alert(`Treino Finalizado! Suaste durante ${durationMinutes} minutos. Máquina! 💪🏆`);
+        else Alert.alert('Treino Finalizado! 🏆', `Suaste durante ${durationMinutes} minutos. Máquina! 💪`);
         navigation.navigate('Dashboard');
       } else {
         throw new Error('Falha ao registar o log na base de dados.');
@@ -176,26 +201,20 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  // 👇 NOVA FUNÇÃO US 31: Lógica para clonar o treino
   const handleCloneWorkout = async () => {
     setIsCloning(true);
     try {
-      const response = await fetch(`http://192.168.1.80:3000/api/workouts/${workoutId}/clone`, {
-        method: 'POST',
-      });
-
+      const response = await fetch(`http://192.168.1.80:3000/api/workouts/${workoutId}/clone`, { method: 'POST' });
       if (response.ok) {
         const clonedWorkout = await response.json();
-        
-        // AC 3: Navega imediatamente para a cópia (usamos replace para não acumular ecrãs)
         navigation.replace('WorkoutDetails', { workoutId: clonedWorkout.id });
       } else {
         throw new Error('Falha ao duplicar o treino na base de dados.');
       }
     } catch (error) {
       console.error('❌ Erro ao duplicar treino:', error);
-      if (Platform.OS === 'web') alert('Erro ao duplicar o treino. Tenta de novo!');
-      else Alert.alert('Erro', 'Não foi possível duplicar o treino. Tenta de novo!');
+      if (Platform.OS === 'web') alert('Erro ao duplicar o treino.');
+      else Alert.alert('Erro', 'Não foi possível duplicar o treino.');
     } finally {
       setIsCloning(false);
     }
@@ -211,9 +230,20 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         onPress={() => toggleExerciseCompletion(item.id)}
       >
         <View style={styles.exerciseInfo}>
-          <Text style={[styles.exerciseName, isCompleted && styles.exerciseTextCompleted]}>
-            {isCompleted ? '✅ ' : ''}{item.name}
-          </Text>
+          {/* ==========================================
+              US 36: AQUI DESENHAMOS O SELO DO PR 🏆
+              ========================================== */}
+          <View style={styles.exerciseNameRow}>
+            <Text style={[styles.exerciseName, isCompleted && styles.exerciseTextCompleted]}>
+              {isCompleted ? '✅ ' : ''}{item.name}
+            </Text>
+            {exercisePRs[item.name] ? (
+              <View style={styles.prBadge}>
+                <Text style={styles.prBadgeText}>🏆 PR: {exercisePRs[item.name]}kg</Text>
+              </View>
+            ) : null}
+          </View>
+          
           <Text style={[styles.exerciseDetails, isCompleted && styles.exerciseTextCompleted]}>
             {item.sets} séries x {item.reps} reps {item.weight ? `| ${item.weight}kg` : ''}
           </Text>
@@ -255,16 +285,10 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
           <View style={styles.timerActiveState}>
             <Text style={styles.timerDisplay}>{formatTime(timeLeft)}</Text>
             <View style={styles.timerButtons}>
-              <TouchableOpacity style={styles.timerBtn} onPress={() => startTimer(60)}>
-                <Text style={styles.timerBtnText}>+ 60s</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.timerBtn} onPress={() => startTimer(90)}>
-                <Text style={styles.timerBtnText}>+ 90s</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={styles.timerBtn} onPress={() => startTimer(60)}><Text style={styles.timerBtnText}>+ 60s</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.timerBtn} onPress={() => startTimer(90)}><Text style={styles.timerBtnText}>+ 90s</Text></TouchableOpacity>
               {timerState === 'running' && (
-                <TouchableOpacity style={styles.timerBtnStop} onPress={stopTimer}>
-                  <Text style={styles.timerBtnText}>Parar</Text>
-                </TouchableOpacity>
+                <TouchableOpacity style={styles.timerBtnStop} onPress={stopTimer}><Text style={styles.timerBtnText}>Parar</Text></TouchableOpacity>
               )}
             </View>
           </View>
@@ -289,21 +313,11 @@ export default function WorkoutDetailsScreen({ route, navigation }: any) {
         />
       </View>
 
-      {/* BLOCO DE BOTÕES DE AÇÃO */}
-      <TouchableOpacity 
-        style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} 
-        onPress={handleFinishWorkout}
-        disabled={isFinishing}
-      >
+      <TouchableOpacity style={[styles.finishBtn, isFinishing && styles.finishBtnDisabled]} onPress={handleFinishWorkout} disabled={isFinishing}>
         <Text style={styles.finishBtnText}>{isFinishing ? 'A registar...' : '🏆 Finalizar Treino'}</Text>
       </TouchableOpacity>
 
-      {/* 👇 NOVO BOTÃO US 31: Duplicar Treino */}
-      <TouchableOpacity 
-        style={[styles.cloneWorkoutBtn, isCloning && styles.cloneWorkoutBtnDisabled]} 
-        onPress={handleCloneWorkout}
-        disabled={isCloning}
-      >
+      <TouchableOpacity style={[styles.cloneWorkoutBtn, isCloning && styles.cloneWorkoutBtnDisabled]} onPress={handleCloneWorkout} disabled={isCloning}>
         <Text style={styles.cloneWorkoutText}>{isCloning ? 'A duplicar...' : '👯 Duplicar Treino'}</Text>
       </TouchableOpacity>
 
@@ -330,10 +344,17 @@ const styles = StyleSheet.create({
   
   exerciseCard: { backgroundColor: '#2a2a2a', padding: 15, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#4285F4', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseInfo: { flex: 1 },
-  exerciseName: { fontSize: 18, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
+  
+  // 👇 NOVOS ESTILOS PARA O SELO DE PR DA US 36
+  exerciseNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 5 },
+  prBadge: { backgroundColor: '#FFD700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, marginLeft: 10, borderWidth: 1, borderColor: '#cca300' },
+  prBadgeText: { color: '#121212', fontSize: 11, fontWeight: 'bold' },
+
+  exerciseName: { fontSize: 18, fontWeight: 'bold', color: '#ffffff' },
   exerciseDetails: { fontSize: 14, color: '#aaaaaa' },
   exerciseCardCompleted: { borderLeftColor: '#4CAF50', backgroundColor: '#1a1a1a', opacity: 0.6 },
   exerciseTextCompleted: { textDecorationLine: 'line-through', color: '#666' },
+  
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   actionBtn: { padding: 5, marginLeft: 10 },
   iconText: { fontSize: 20 },
@@ -353,12 +374,9 @@ const styles = StyleSheet.create({
   finishBtn: { backgroundColor: '#FFD700', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10, elevation: 5, shadowColor: '#FFD700', shadowOpacity: 0.4, shadowRadius: 8 },
   finishBtnDisabled: { backgroundColor: '#b39700', opacity: 0.7 },
   finishBtnText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
-
-  // 👇 ESTILOS DO NOVO BOTÃO DE CLONAR
   cloneWorkoutBtn: { backgroundColor: '#4285F4', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   cloneWorkoutBtnDisabled: { backgroundColor: '#2c5aa0', opacity: 0.7 },
   cloneWorkoutText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
-
   deleteWorkoutBtn: { backgroundColor: '#ff4444', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   deleteWorkoutText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' }
 });
