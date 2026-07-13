@@ -12,12 +12,12 @@ export default function DashboardScreen({ navigation }: any) {
   
   const [totalLogs, setTotalLogs] = useState(0);
   const [weeklyLogs, setWeeklyLogs] = useState(0);
+
+  // ==========================================
+  // US 37: ESTADO PARA O TEMPO TOTAL DE TREINO
+  // ==========================================
+  const [totalMinutes, setTotalMinutes] = useState(0);
   
-  // ==========================================
-  // US 34: LER O OBJETIVO DIRETAMENTE DO PERFIL (AC 1)
-  // ==========================================
-  // O Zustand fornece o 'user' com o weeklyGoal atualizado.
-  // Se por algum motivo não existir (novo utilizador), assume 3 por defeito.
   const WEEKLY_GOAL = user?.weeklyGoal || 3; 
 
   useFocusEffect(
@@ -35,6 +35,12 @@ export default function DashboardScreen({ navigation }: any) {
           const logsResponse = await fetch(`http://192.168.1.80:3000/api/logs/${user.id}`);
           const logsData = await logsResponse.json();
           setTotalLogs(logsData.length || 0);
+
+          // 👇 US 37 (AC 1): Somar todos os minutos do histórico
+          const summedMinutes = logsData.reduce((acc: number, log: any) => {
+            return acc + (log.durationMinutes || 0);
+          }, 0);
+          setTotalMinutes(summedMinutes);
 
           const now = new Date();
           const dayOfWeek = now.getDay() || 7; 
@@ -65,6 +71,15 @@ export default function DashboardScreen({ navigation }: any) {
     }, [user?.id])
   );
 
+  // 👇 US 37 (AC 2): Função para formatar o tempo de forma limpa
+  const formatTotalTime = (mins: number) => {
+    if (mins === 0) return '0m';
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
+
   const renderWorkoutCard = ({ item }: any) => (
     <TouchableOpacity 
       style={styles.workoutCard}
@@ -77,9 +92,6 @@ export default function DashboardScreen({ navigation }: any) {
     </TouchableOpacity>
   );
 
-  // ==========================================
-  // AC 2: A matemática e o texto adaptam-se automaticamente ao WEEKLY_GOAL dinâmico!
-  // ==========================================
   let motivationalText = "Bora começar a semana! 💪";
   if (weeklyLogs > 0 && weeklyLogs < WEEKLY_GOAL) {
     motivationalText = `Faltam ${WEEKLY_GOAL - weeklyLogs} treinos para o objetivo! 🔥`;
@@ -96,13 +108,30 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.subtitle}>Olá, {user?.name}!</Text>
       </View>
 
-      <View style={styles.statsCard}>
-        <View style={styles.statsInfo}>
-          <Text style={styles.statsNumber}>{totalLogs}</Text>
-          <Text style={styles.statsLabel}>Treinos{'\n'}Totais</Text>
+      {/* ==========================================
+          US 37: NOVA LINHA DE ESTATÍSTICAS (AC 2)
+          ========================================== */}
+      <View style={styles.statsRow}>
+        <View style={[styles.statsCard, styles.halfCard]}>
+          <View style={styles.statsInfo}>
+            <Text style={styles.statsNumber}>{totalLogs}</Text>
+            <Text style={styles.statsLabel}>Treinos{'\n'}Totais</Text>
+          </View>
+          <Text style={styles.statsIcon}>🏆</Text>
         </View>
-        <Text style={styles.statsIcon}>🏆</Text>
+
+        <View style={[styles.statsCard, styles.halfCard]}>
+          <View style={styles.statsInfo}>
+            {/* O texto do tempo total precisa de ser um pouco menor para caber se for "100h 45m" */}
+            <Text style={[styles.statsNumber, { fontSize: 24, color: '#4CAF50' }]}>
+              {formatTotalTime(totalMinutes)}
+            </Text>
+            <Text style={styles.statsLabel}>Tempo{'\n'}Total</Text>
+          </View>
+          <Text style={styles.statsIcon}>⏱️</Text>
+        </View>
       </View>
+      {/* ========================================== */}
 
       <View style={styles.weeklyContainer}>
         <View style={styles.weeklyHeader}>
@@ -184,11 +213,15 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   subtitle: { fontSize: 18, color: '#4285F4' },
   
-  statsCard: { backgroundColor: '#1e1e1e', padding: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, borderWidth: 1, borderColor: '#333' },
-  statsInfo: { flexDirection: 'row', alignItems: 'center' },
-  statsNumber: { fontSize: 36, fontWeight: 'bold', color: '#FFD700', marginRight: 15 },
-  statsLabel: { fontSize: 14, color: '#aaaaaa', textTransform: 'uppercase', fontWeight: 'bold' },
-  statsIcon: { fontSize: 40 },
+  // 👇 US 37: NOVOS ESTILOS PARA METER OS CARTÕES LADO A LADO
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+  halfCard: { flex: 1, marginHorizontal: 5, padding: 15 },
+  
+  statsCard: { backgroundColor: '#1e1e1e', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#333' },
+  statsInfo: { flex: 1 },
+  statsNumber: { fontSize: 32, fontWeight: 'bold', color: '#FFD700', marginBottom: 2 },
+  statsLabel: { fontSize: 12, color: '#aaaaaa', textTransform: 'uppercase', fontWeight: 'bold' },
+  statsIcon: { fontSize: 28, opacity: 0.8 },
 
   weeklyContainer: { backgroundColor: '#1e1e1e', padding: 15, borderRadius: 12, marginBottom: 25, borderWidth: 1, borderColor: '#333' },
   weeklyHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
