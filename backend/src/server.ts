@@ -635,6 +635,69 @@ app.get('/api/nutrition/meals/:userId/today', async (req, res) => {
   }
 });
 
+// AC 1 & 2: Analisar imagem de comida com IA (POST)
+app.post('/api/nutrition/analyze', async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'Falta a imagem em Base64 para analisar.' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'A GEMINI_API_KEY não está configurada no servidor.' });
+    }
+
+    console.log('🤖 A enviar imagem para o cérebro da IA...');
+
+    // Limpar o prefixo do Base64 caso o frontend o envie (data:image/jpeg;base64,...)
+    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+
+    // Usamos o modelo flash porque é brutalmente rápido com imagens
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    // O prompt onde ensinamos a IA a comportar-se como uma API de dados
+    const prompt = `És um nutricionista especialista. Analisa esta imagem de comida.
+    Estima as porções visíveis e devolve APENAS um objeto JSON válido.
+    Não escrevas mais nada, não uses formatação markdown (sem \`\`\`json).
+    A estrutura tem de ser EXATAMENTE esta:
+    {
+      "name": "Nome descritivo do prato (ex: Bife de Frango com Arroz)",
+      "calories": numero_inteiro_estimado,
+      "protein": numero_inteiro_estimado_em_gramas,
+      "carbs": numero_inteiro_estimado_em_gramas,
+      "fat": numero_inteiro_estimado_em_gramas
+    }`;
+
+    const imageParts = [
+      {
+        inlineData: {
+          data: cleanBase64,
+          mimeType: 'image/jpeg' 
+        }
+      }
+    ];
+
+    // O pedido real à IA
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const response = await result.response;
+    const text = response.text();
+
+    // Uma limpeza de segurança caso a IA decida ser simpática e enviar formatação extra
+    const cleanedText = text.replace(/```json/gi, '').replace(/```/gi, '').trim();
+    
+    // Transformar o texto da IA num objeto JSON real
+    const nutritionData = JSON.parse(cleanedText);
+
+    console.log(`✅ IA analisou com sucesso: ${nutritionData.name} (${nutritionData.calories} kcal)`);
+    res.status(200).json(nutritionData);
+
+  } catch (error) {
+    console.error('❌ Erro na análise de IA:', error);
+    res.status(500).json({ error: 'A IA teve um curto-circuito a olhar para esse prato.' });
+  }
+});
+
 // ==========================================
 // ARRANQUE DO SERVIDOR
 // ==========================================
