@@ -8,6 +8,10 @@ interface User {
   picture?: string;
   weeklyGoal?: number;
   currentStreak?: number;
+  dailyCalories?: number;
+  dailyProtein?: number;
+  dailyCarbs?: number;
+  dailyFat?: number;
 }
 
 interface AuthState {

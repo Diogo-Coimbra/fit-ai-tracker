@@ -98,7 +98,6 @@ export default function DashboardScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       
-      {/* 👇 US 39: CABEÇALHO ATUALIZADO COM O SELO DO STREAK */}
       <View style={styles.header}>
         <Text style={styles.title}>Painel Principal 📊</Text>
         <View style={styles.subtitleRow}>
@@ -108,7 +107,6 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         </View>
       </View>
-      {/* ========================================== */}
 
       <View style={styles.statsRow}>
         <View style={[styles.statsCard, styles.halfCard]}>
@@ -143,10 +141,18 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.weeklyMotivation}>{motivationalText}</Text>
       </View>
 
+      {/* 👇 NOVO BOTÃO DA NUTRIÇÃO INTELIGENTE (US 44) */}
+      <TouchableOpacity 
+        style={styles.nutritionButton} 
+        onPress={() => navigation.navigate('Nutrition')}
+      >
+        <Text style={styles.nutritionButtonText}>🍎 Nutrição Inteligente (IA)</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.aiButton} onPress={() => navigation.navigate('AIGenerator')}>
         <Text style={styles.aiButtonText}>✨ Gerar Treino com IA</Text>
       </TouchableOpacity>
-
+      
       <TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('CreateWorkout')}>
         <Text style={styles.createButtonText}>+ Criar Novo Treino Manual</Text>
       </TouchableOpacity>
@@ -190,7 +196,6 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 20 },
   title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
   
-  // 👇 US 39: NOVOS ESTILOS DO STREAK
   subtitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   subtitle: { fontSize: 18, color: '#4285F4' },
   streakBadge: { backgroundColor: '#331a00', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#ff6600' },
@@ -211,6 +216,23 @@ const styles = StyleSheet.create({
   progressBarBg: { height: 12, backgroundColor: '#333', borderRadius: 6, overflow: 'hidden', marginBottom: 10 },
   progressBarFill: { height: '100%', backgroundColor: '#4CAF50', borderRadius: 6 },
   weeklyMotivation: { fontSize: 14, color: '#aaaaaa', fontStyle: 'italic', textAlign: 'center' },
+
+  // 👇 ESTILOS DO NOVO BOTÃO DE NUTRIÇÃO
+  nutritionButton: { 
+    backgroundColor: '#ff4444', 
+    paddingVertical: 15, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    marginBottom: 15, 
+    elevation: 3,
+    borderWidth: 1, 
+    borderColor: '#cc0000'
+  },
+  nutritionButtonText: { 
+    color: '#ffffff', 
+    fontSize: 16, 
+    fontWeight: 'bold' 
+  },
 
   aiButton: { backgroundColor: '#8A2BE2', paddingVertical: 15, borderRadius: 8, elevation: 5, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#a350eb' },
   aiButtonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },

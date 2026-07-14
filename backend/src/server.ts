@@ -10,7 +10,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // 🕵️ DEBUG PARA VER SE O FRONTEND ESTÁ A COMUNICAR CORRECTAMENTE
 app.use((req, res, next) => {
@@ -636,6 +637,8 @@ app.get('/api/nutrition/meals/:userId/today', async (req, res) => {
 });
 
 // AC 1 & 2: Analisar imagem de comida com IA (POST)
+// AC 1 & 2: Analisar imagem de comida com IA (POST) - VERSÃO DINÂMICA
+// AC 1 & 2: Analisar imagem de comida com IA (POST)
 app.post('/api/nutrition/analyze', async (req, res) => {
   try {
     const { imageBase64 } = req.body;
@@ -650,13 +653,11 @@ app.post('/api/nutrition/analyze', async (req, res) => {
 
     console.log('🤖 A enviar imagem para o cérebro da IA...');
 
-    // Limpar o prefixo do Base64 caso o frontend o envie (data:image/jpeg;base64,...)
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    // Usamos o modelo flash porque é brutalmente rápido com imagens
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // 👇 AQUI ESTÁ ELE: Fixo, direto e super rápido!
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    // O prompt onde ensinamos a IA a comportar-se como uma API de dados
     const prompt = `És um nutricionista especialista. Analisa esta imagem de comida.
     Estima as porções visíveis e devolve APENAS um objeto JSON válido.
     Não escrevas mais nada, não uses formatação markdown (sem \`\`\`json).
@@ -678,18 +679,14 @@ app.post('/api/nutrition/analyze', async (req, res) => {
       }
     ];
 
-    // O pedido real à IA
     const result = await model.generateContent([prompt, ...imageParts]);
     const response = await result.response;
     const text = response.text();
 
-    // Uma limpeza de segurança caso a IA decida ser simpática e enviar formatação extra
     const cleanedText = text.replace(/```json/gi, '').replace(/```/gi, '').trim();
-    
-    // Transformar o texto da IA num objeto JSON real
     const nutritionData = JSON.parse(cleanedText);
 
-    console.log(`✅ IA analisou com sucesso: ${nutritionData.name} (${nutritionData.calories} kcal)`);
+    console.log(`🍔 IA analisou com sucesso: ${nutritionData.name} (${nutritionData.calories} kcal)`);
     res.status(200).json(nutritionData);
 
   } catch (error) {
