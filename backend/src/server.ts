@@ -573,6 +573,69 @@ app.get('/api/metrics/weight/:userId', async (req, res) => {
 });
 
 // ==========================================
+// US 42: ROTAS DE NUTRIÇÃO E CALORIAS 🍎
+// ==========================================
+
+// AC 3: Registar uma nova refeição (POST)
+app.post('/api/nutrition/meals', async (req, res) => {
+  try {
+    const { userId, name, calories, protein, carbs, fat, imageUri } = req.body;
+
+    if (!userId || !name || calories === undefined) {
+      return res.status(400).json({ error: 'Faltam dados obrigatórios (userId, name, calories).' });
+    }
+
+    const newMeal = await prisma.mealLog.create({
+      data: {
+        userId,
+        name,
+        calories: parseInt(calories),
+        protein: parseInt(protein) || 0,
+        carbs: parseInt(carbs) || 0,
+        fat: parseInt(fat) || 0,
+        imageUri: imageUri || null,
+      },
+    });
+
+    console.log(`🍎 Nova refeição "${name}" registada para o user ${userId} com ${calories} kcal.`);
+    res.status(201).json(newMeal);
+  } catch (error) {
+    console.error('❌ Erro ao registar refeição:', error);
+    res.status(500).json({ error: 'Erro ao guardar a refeição no diário.' });
+  }
+});
+
+// AC 3: Obter refeições de HOJE do utilizador (GET)
+app.get('/api/nutrition/meals/:userId/today', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Magia com as datas para apanhar apenas a janela de hoje (00:00:00 até 23:59:59)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(todayStart.getDate() + 1);
+
+    const todayMeals = await prisma.mealLog.findMany({
+      where: {
+        userId: userId,
+        createdAt: {
+          gte: todayStart,
+          lt: tomorrowStart, // Menos que a meia-noite de amanhã
+        },
+      },
+      orderBy: { createdAt: 'desc' }, // A mais recente no topo
+    });
+
+    res.status(200).json(todayMeals);
+  } catch (error) {
+    console.error('❌ Erro ao buscar refeições de hoje:', error);
+    res.status(500).json({ error: 'Erro ao obter o diário de nutrição.' });
+  }
+});
+
+// ==========================================
 // ARRANQUE DO SERVIDOR
 // ==========================================
 

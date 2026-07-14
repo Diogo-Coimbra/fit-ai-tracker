@@ -10,19 +10,26 @@ datasource db {
 }
 
 model User {
-  id         String       @id @default(uuid())
-  googleId   String?      @unique
-  name       String
-  email      String       @unique
-  password   String?      
-  picture    String?
-  weeklyGoal Int          @default(3)
+  id            String       @id @default(uuid())
+  googleId      String?      @unique
+  name          String
+  email         String       @unique
+  password      String?
+  picture       String?
+  weeklyGoal    Int          @default(3)
   currentStreak Int          @default(0)
-  createdAt  DateTime     @default(now())
   
-  workouts   Workout[]
-  logs       WorkoutLog[]
+  dailyCalories Int          @default(2500)
+  dailyProtein  Int          @default(150)
+  dailyCarbs    Int          @default(300)
+  dailyFat      Int          @default(80)
+
+  createdAt     DateTime     @default(now())
+  
+  workouts      Workout[]
+  logs          WorkoutLog[]
   bodyMetrics   BodyMetric[]
+  meals         MealLog[] 
 }
 
 // NOVO MODELO: O Treino (ex: "Dia de Peito", "Leg Day")
@@ -75,6 +82,20 @@ model BodyMetric {
   id        String   @id @default(uuid())
   userId    String
   weight    Float
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model MealLog {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  calories  Int
+  protein   Int
+  carbs     Int
+  fat       Int
+  imageUri  String?  // Para quando metermos a câmara a funcionar!
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id])
