@@ -24,7 +24,7 @@ import { useTheme } from '../store/useThemeStore';
 import { useLanguage } from '../store/useLanguageStore';
 
 export default function DashboardScreen({ navigation }: any) {
-  const { user, trial, coach, setUser, setTrial } = useAuthStore();
+  const { user, trial, coach, setUser, setTrial, setCoach } = useAuthStore();
   const { colors } = useTheme();
   const { t } = useLanguage();
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -100,10 +100,15 @@ export default function DashboardScreen({ navigation }: any) {
     try {
       setIsLoading(true);
 
-      const [workoutsData, logsData] = await Promise.all([
+      const [workoutsData, logsData, meData] = await Promise.all([
         api.get('/api/workouts'),
         api.get(`/api/logs/${user.id}`),
+        api.get('/api/auth/me').catch(() => null),
       ]);
+
+      if (meData?.user) setUser(meData.user);
+      if (meData?.coach !== undefined) await setCoach(meData.coach);
+      if (meData?.trial) setTrial(meData.trial);
 
       setWorkouts(workoutsData || []);
       setTotalLogs(logsData.length || 0);

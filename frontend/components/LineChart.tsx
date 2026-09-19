@@ -160,8 +160,12 @@ export const LineChart: React.FC<LineChartProps> = ({
     >
       {/* Cabeçalho com Título, Valor Ativo e Variação */}
       <View style={styles.headerRow}>
-        <View>
-          {title && <Text style={[styles.title, { color: colors.muted }]}>{title}</Text>}
+        <View style={styles.headerLeft}>
+          {title && (
+            <Text style={[styles.title, { color: colors.muted }]} numberOfLines={1} ellipsizeMode="tail">
+              {title}
+            </Text>
+          )}
           {activePoint && (
             <View style={styles.valueRow}>
               <Text style={[styles.activeValue, { color: colors.text }]}>
@@ -203,12 +207,22 @@ export const LineChart: React.FC<LineChartProps> = ({
         </View>
 
         {activePoint && (
-          <View style={styles.dateBadge}>
-            <Text style={[styles.dateText, { color: colors.muted }]}>
+          <View
+            style={[
+              styles.dateBadge,
+              {
+                backgroundColor: colors.surface2 || 'rgba(255, 255, 255, 0.05)',
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.dateText, { color: colors.text }]} numberOfLines={1}>
               {activePoint.data.date}
             </Text>
             {activePoint.data.extra && (
-              <Text style={[styles.extraText, { color: strokeColor }]}>{activePoint.data.extra}</Text>
+              <Text style={[styles.extraText, { color: strokeColor }]} numberOfLines={1}>
+                {activePoint.data.extra}
+              </Text>
             )}
           </View>
         )}
@@ -326,9 +340,10 @@ export const LineChart: React.FC<LineChartProps> = ({
 const styles = StyleSheet.create({
   container: {
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     marginVertical: 8,
+    overflow: 'hidden',
   },
   emptyContainer: {
     borderRadius: 16,
@@ -339,8 +354,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -355,14 +370,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
+    gap: 8,
+    width: '100%',
+  },
+  headerLeft: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 6,
   },
   valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexWrap: 'wrap',
   },
   activeValue: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
   },
   deltaBadge: {
@@ -371,18 +394,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   deltaText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   dateBadge: {
     alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexShrink: 0,
+    maxWidth: '45%',
   },
   dateText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
   },
   extraText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     marginTop: 2,
   },

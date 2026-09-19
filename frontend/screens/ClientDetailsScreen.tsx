@@ -17,7 +17,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Screen } from '../components/ui';
+import { Card, Screen, ProgressBar } from '../components/ui';
 import { ColorScheme, radius, space } from '../theme';
 import { api } from '../services/api';
 import { LineChart, ChartDataPoint } from '../components/LineChart';
@@ -82,6 +82,88 @@ export default function ClientDetailsScreen({ route, navigation }: any) {
   const [assessmentNotes, setAssessmentNotes] = useState('');
   const [assessmentPhotoUri, setAssessmentPhotoUri] = useState<string | null>(null);
   const [assessmentPhotoBase64, setAssessmentPhotoBase64] = useState<string | null>(null);
+
+  // Filtro de Nutrição do Aluno (Hoje, Ontem, Histórico Completo)
+  const [nutritionFilter, setNutritionFilter] = useState<'today' | 'yesterday' | 'all'>('today');
+
+  const isSameLocalDay = (d1: Date, d2: Date) => {
+    return (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    );
+  };
+
+  const clientMeals: any[] = useMemo(() => client?.meals || [], [client?.meals]);
+
+  const todayDate = useMemo(() => new Date(), []);
+  const yesterdayDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d;
+  }, []);
+
+  const todayMeals = useMemo(() => {
+    return clientMeals.filter((m) => isSameLocalDay(new Date(m.createdAt), todayDate));
+  }, [clientMeals, todayDate]);
+
+  const yesterdayMeals = useMemo(() => {
+    return clientMeals.filter((m) => isSameLocalDay(new Date(m.createdAt), yesterdayDate));
+  }, [clientMeals, yesterdayDate]);
+
+  const activeDayMeals = nutritionFilter === 'yesterday' ? yesterdayMeals : todayMeals;
+  const activeDayCalories = useMemo(() => activeDayMeals.reduce((acc, m) => acc + (m.calories || 0), 0), [activeDayMeals]);
+  const activeDayProtein = useMemo(() => activeDayMeals.reduce((acc, m) => acc + (m.protein || 0), 0), [activeDayMeals]);
+  const activeDayCarbs = useMemo(() => activeDayMeals.reduce((acc, m) => acc + (m.carbs || 0), 0), [activeDayMeals]);
+  const activeDayFat = useMemo(() => activeDayMeals.reduce((acc, m) => acc + (m.fat || 0), 0), [activeDayMeals]);
+
+  // Agrupamento por dia para o modo Histórico Completo
+  const groupedMeals = useMemo(() => {
+    const groups: {
+      dateKey: string;
+      displayDate: string;
+      totalCalories: number;
+      totalProtein: number;
+      totalCarbs: number;
+      totalFat: number;
+      meals: any[];
+    }[] = [];
+
+    clientMeals.forEach((meal) => {
+      const mDate = new Date(meal.createdAt);
+      const dateKey = `${mDate.getFullYear()}-${String(mDate.getMonth() + 1).padStart(2, '0')}-${String(mDate.getDate()).padStart(2, '0')}`;
+      let group = groups.find((g) => g.dateKey === dateKey);
+      if (!group) {
+        let displayDate = mDate.toLocaleDateString(currentLocale, {
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        });
+        if (isSameLocalDay(mDate, todayDate)) {
+          displayDate = `Hoje (${mDate.toLocaleDateString(currentLocale, { day: '2-digit', month: 'short' })})`;
+        } else if (isSameLocalDay(mDate, yesterdayDate)) {
+          displayDate = `Ontem (${mDate.toLocaleDateString(currentLocale, { day: '2-digit', month: 'short' })})`;
+        }
+        group = {
+          dateKey,
+          displayDate,
+          totalCalories: 0,
+          totalProtein: 0,
+          totalCarbs: 0,
+          totalFat: 0,
+          meals: [],
+        };
+        groups.push(group);
+      }
+      group.meals.push(meal);
+      group.totalCalories += meal.calories || 0;
+      group.totalProtein += meal.protein || 0;
+      group.totalCarbs += meal.carbs || 0;
+      group.totalFat += meal.fat || 0;
+    });
+    return groups;
+  }, [clientMeals, currentLocale, todayDate, yesterdayDate]);
 
   const fetchClientDetails = useCallback(async () => {
     try {
@@ -738,43 +820,196 @@ export default function ClientDetailsScreen({ route, navigation }: any) {
               </View>
             </Card>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.tabSectionTitle}>
-                {t('nutrition.registeredMeals')} ({client?.meals?.length || 0})
-              </Text>
+            {/* Filtro de Período: Hoje / Ontem / Histórico */}
+            <View style={styles.nutritionFilterRow}>
+              <TouchableOpacity
+                style={[
+                  styles.nutritionFilterChip,
+                  nutritionFilter === 'today' && { backgroundColor: colors.accent, borderColor: colors.accent },
+                ]}
+                onPress={() => setNutritionFilter('today')}
+              >
+                <Text
+                  style={[
+                    styles.nutritionFilterText,
+                    nutritionFilter === 'today' && { color: colors.bg, fontWeight: '700' },
+                  ]}
+                >
+                  Hoje ({todayMeals.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.nutritionFilterChip,
+                  nutritionFilter === 'yesterday' && { backgroundColor: colors.accent, borderColor: colors.accent },
+                ]}
+                onPress={() => setNutritionFilter('yesterday')}
+              >
+                <Text
+                  style={[
+                    styles.nutritionFilterText,
+                    nutritionFilter === 'yesterday' && { color: colors.bg, fontWeight: '700' },
+                  ]}
+                >
+                  Ontem ({yesterdayMeals.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.nutritionFilterChip,
+                  nutritionFilter === 'all' && { backgroundColor: colors.accent, borderColor: colors.accent },
+                ]}
+                onPress={() => setNutritionFilter('all')}
+              >
+                <Text
+                  style={[
+                    styles.nutritionFilterText,
+                    nutritionFilter === 'all' && { color: colors.bg, fontWeight: '700' },
+                  ]}
+                >
+                  Histórico ({clientMeals.length})
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            {(client?.meals || []).length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="restaurant-outline" size={40} color={colors.muted} />
-                <Text style={styles.emptyText}>{t('clientDetails.noMealsRecorded')}</Text>
-              </View>
-            ) : (
-              client.meals.map((item: any) => {
-                const date = new Date(item.createdAt).toLocaleDateString(currentLocale, {
-                  day: '2-digit',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
-                return (
-                  <Card key={item.id} style={styles.mealCard}>
-                    {item.imageUri ? (
-                      <Image source={{ uri: item.imageUri }} style={styles.mealImage} />
-                    ) : null}
-                    <View style={styles.mealContent}>
-                      <View style={styles.mealHeader}>
-                        <Text style={styles.mealName}>{item.name}</Text>
-                        <Text style={styles.mealCalories}>{item.calories} kcal</Text>
+            {/* Resumo do Dia Selecionado (Hoje ou Ontem) */}
+            {nutritionFilter !== 'all' && (
+              <Card style={[styles.daySummaryCard, { borderColor: colors.border }]}>
+                <View style={styles.daySummaryHeader}>
+                  <Text style={[styles.daySummaryTitle, { color: colors.text }]}>
+                    {nutritionFilter === 'today' ? 'Consumo de Hoje' : 'Consumo de Ontem'}
+                  </Text>
+                  <Text style={[styles.daySummaryCal, { color: colors.accent }]}>
+                    {activeDayCalories} {client?.dailyCalories ? `/ ${client.dailyCalories}` : ''} kcal
+                  </Text>
+                </View>
+
+                {client?.dailyCalories ? (
+                  <View style={{ marginVertical: 8 }}>
+                    <ProgressBar
+                      value={Math.min(100, Math.round((activeDayCalories / client.dailyCalories) * 100))}
+                    />
+                  </View>
+                ) : null}
+
+                <View style={styles.dayMacroRow}>
+                  <Text style={[styles.dayMacroText, { color: colors.muted }]}>
+                    Proteína: <Text style={{ color: colors.text, fontWeight: '700' }}>{activeDayProtein}g</Text>
+                  </Text>
+                  <Text style={[styles.dayMacroText, { color: colors.muted }]}>
+                    Carbs: <Text style={{ color: colors.text, fontWeight: '700' }}>{activeDayCarbs}g</Text>
+                  </Text>
+                  <Text style={[styles.dayMacroText, { color: colors.muted }]}>
+                    Gordura: <Text style={{ color: colors.text, fontWeight: '700' }}>{activeDayFat}g</Text>
+                  </Text>
+                </View>
+              </Card>
+            )}
+
+            {/* Lista para Hoje ou Ontem */}
+            {nutritionFilter !== 'all' && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.tabSectionTitle}>
+                    {nutritionFilter === 'today' ? 'Refeições de Hoje' : 'Refeições de Ontem'} ({activeDayMeals.length})
+                  </Text>
+                </View>
+
+                {activeDayMeals.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="restaurant-outline" size={40} color={colors.muted} />
+                    <Text style={styles.emptyText}>
+                      {nutritionFilter === 'today'
+                        ? 'O aluno ainda não registou refeições hoje.'
+                        : 'Nenhuma refeição registada ontem.'}
+                    </Text>
+                  </View>
+                ) : (
+                  activeDayMeals.map((item: any) => {
+                    const timeStr = new Date(item.createdAt).toLocaleTimeString(currentLocale, {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    });
+                    return (
+                      <Card key={item.id} style={styles.mealCard}>
+                        {item.imageUri ? (
+                          <Image source={{ uri: item.imageUri }} style={styles.mealImage} />
+                        ) : null}
+                        <View style={styles.mealContent}>
+                          <View style={styles.mealHeader}>
+                            <Text style={styles.mealName}>{item.name}</Text>
+                            <Text style={styles.mealCalories}>{item.calories} kcal</Text>
+                          </View>
+                          <Text style={styles.mealMacros}>
+                            P: {item.protein}g  ·  C: {item.carbs}g  ·  G: {item.fat}g
+                          </Text>
+                          <Text style={styles.mealDate}>🕒 {timeStr}</Text>
+                        </View>
+                      </Card>
+                    );
+                  })
+                )}
+              </>
+            )}
+
+            {/* Lista para Histórico Completo */}
+            {nutritionFilter === 'all' && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.tabSectionTitle}>
+                    Histórico Completo de Refeições ({clientMeals.length})
+                  </Text>
+                </View>
+
+                {groupedMeals.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="restaurant-outline" size={40} color={colors.muted} />
+                    <Text style={styles.emptyText}>O aluno ainda não registou qualquer refeição.</Text>
+                  </View>
+                ) : (
+                  groupedMeals.map((group) => (
+                    <View key={group.dateKey} style={styles.dayGroupContainer}>
+                      {/* Cabeçalho do Dia no Histórico */}
+                      <View style={[styles.dayGroupHeader, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="calendar-outline" size={16} color={colors.accent} />
+                          <Text style={[styles.dayGroupTitle, { color: colors.text }]}>{group.displayDate}</Text>
+                        </View>
+                        <Text style={[styles.dayGroupTotal, { color: colors.accent }]}>
+                          {group.totalCalories} kcal
+                        </Text>
                       </View>
-                      <Text style={styles.mealMacros}>
-                        P: {item.protein}g  ·  C: {item.carbs}g  ·  G: {item.fat}g
-                      </Text>
-                      <Text style={styles.mealDate}>{date}</Text>
+
+                      {/* Refeições deste dia */}
+                      {group.meals.map((item: any) => {
+                        const timeStr = new Date(item.createdAt).toLocaleTimeString(currentLocale, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        });
+                        return (
+                          <Card key={item.id} style={styles.mealCard}>
+                            {item.imageUri ? (
+                              <Image source={{ uri: item.imageUri }} style={styles.mealImage} />
+                            ) : null}
+                            <View style={styles.mealContent}>
+                              <View style={styles.mealHeader}>
+                                <Text style={styles.mealName}>{item.name}</Text>
+                                <Text style={styles.mealCalories}>{item.calories} kcal</Text>
+                              </View>
+                              <Text style={styles.mealMacros}>
+                                P: {item.protein}g  ·  C: {item.carbs}g  ·  G: {item.fat}g
+                              </Text>
+                              <Text style={styles.mealDate}>🕒 {timeStr}</Text>
+                            </View>
+                          </Card>
+                        );
+                      })}
                     </View>
-                  </Card>
-                );
-              })
+                  ))
+                )}
+              </>
             )}
           </ScrollView>
         )}
@@ -2277,6 +2512,74 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   exerciseChipText: {
     fontSize: 12,
+  },
+  nutritionFilterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  nutritionFilterChip: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nutritionFilterText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  daySummaryCard: {
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  daySummaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  daySummaryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  daySummaryCal: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  dayMacroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  dayMacroText: {
+    fontSize: 12,
+  },
+  dayGroupContainer: {
+    marginBottom: 16,
+  },
+  dayGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  dayGroupTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  dayGroupTotal: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 

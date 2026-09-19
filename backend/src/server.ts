@@ -547,11 +547,25 @@ app.post('/api/auth/google', async (req, res) => {
 
     const jwtToken = generateToken(user);
 
+    let coach = null;
+    if (user.role === 'CLIENT') {
+      const relation = await prisma.coachClient.findFirst({
+        where: { clientId: user.id },
+        include: {
+          coach: {
+            select: { id: true, name: true, email: true, picture: true, coachBrandName: true },
+          },
+        },
+      });
+      coach = relation?.coach || null;
+    }
+
     console.log(`✅ Utilizador autenticado via Google: ${user.name} (${user.role})`);
     res.status(200).json({
       message: 'Sucesso!',
       user,
       token: jwtToken,
+      coach,
       trial: getTrialInfo(user),
     });
 
@@ -584,12 +598,27 @@ app.post('/api/auth/dev-login', async (req, res) => {
     });
 
     const jwtToken = generateToken(user);
+
+    let coach = null;
+    if (user.role === 'CLIENT') {
+      const relation = await prisma.coachClient.findFirst({
+        where: { clientId: user.id },
+        include: {
+          coach: {
+            select: { id: true, name: true, email: true, picture: true, coachBrandName: true },
+          },
+        },
+      });
+      coach = relation?.coach || null;
+    }
+
     console.log(`🧪 Dev Login realizado: ${user.name} (${user.role})`);
 
     res.status(200).json({
       message: 'Dev login com sucesso!',
       user,
       token: jwtToken,
+      coach,
       trial: getTrialInfo(user),
     });
   } catch (error) {
@@ -1044,7 +1073,7 @@ app.get('/api/coach/clients/:clientId', authenticateToken, requireActiveCoach, a
         },
         meals: {
           orderBy: { createdAt: 'desc' },
-          take: 20,
+          take: 100,
         },
       },
     });
@@ -2740,7 +2769,7 @@ app.post('/api/nutrition/meals', authenticateToken, async (req: AuthenticatedReq
   }
 });
 
-// Obter refeições de HOJE do utilizador (GET) - Protegido
+// Obter refeições de HOJE do utilizador (GET) - Protegido (com suporte a timezone local)
 app.get('/api/nutrition/meals/:userId/today', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const callerId = req.user!.id;
@@ -2753,11 +2782,24 @@ app.get('/api/nutrition/meals/:userId/today', authenticateToken, async (req: Aut
       }
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const dateQuery = req.query.date ? String(req.query.date).trim() : null;
+    const tzOffset = req.query.tzOffset ? parseInt(String(req.query.tzOffset), 10) : null;
 
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setDate(todayStart.getDate() + 1);
+    let todayStart: Date;
+    let tomorrowStart: Date;
+
+    if (dateQuery && /^\d{4}-\d{2}-\d{2}$/.test(dateQuery)) {
+      const [year, month, day] = dateQuery.split('-').map(Number);
+      const offsetMs = (tzOffset !== null && !isNaN(tzOffset) ? tzOffset : 0) * 60 * 1000;
+      const clientMidnightUtc = Date.UTC(year, month - 1, day) + offsetMs;
+      todayStart = new Date(clientMidnightUtc);
+      tomorrowStart = new Date(clientMidnightUtc + 24 * 60 * 60 * 1000);
+    } else {
+      todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      tomorrowStart = new Date(todayStart);
+      tomorrowStart.setDate(todayStart.getDate() + 1);
+    }
 
     const todayMeals = await prisma.mealLog.findMany({
       where: {
@@ -2793,7 +2835,7 @@ app.get('/api/nutrition/meals/:userId', authenticateToken, async (req: Authentic
     const meals = await prisma.mealLog.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: 100,
     });
 
     res.status(200).json(meals);
